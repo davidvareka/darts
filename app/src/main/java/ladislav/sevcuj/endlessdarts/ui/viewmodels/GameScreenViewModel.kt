@@ -12,6 +12,12 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 
 class GameScreenViewModel : ViewModel() {
 
+    private var dumpIterator: Int = 0
+
+    private val _multiplicator = MutableLiveData(1)
+    val multiplicator: LiveData<Int>
+        get() = _multiplicator
+
     private val _currentThrow = MutableLiveData(
         Throw(
             id = 0,
@@ -48,36 +54,49 @@ class GameScreenViewModel : ViewModel() {
                 DartBoard.Field(
                     "20",
                     "20",
+                    maxMultiplication = 1,
                 ),
                 DartBoard.Field(
+                    "20",
                     "D20",
-                    "D20",
-                    value = 40,
+                    value = 20,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 2,
                 ),
                 DartBoard.Field(
+                    "20",
                     "T20",
-                    "T20",
-                    value = 60,
+                    value = 20,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 3,
                 ),
                 DartBoard.Field(
+                    "1",
                     "D1",
-                    "D1",
-                    value = 2,
+                    value = 1,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 2,
                 ),
                 DartBoard.Field(
+                    "1",
                     "T1",
-                    "T1",
-                    value = 3,
+                    value = 1,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 3,
                 ),
                 DartBoard.Field(
+                    "5",
                     "D5",
-                    "D5",
-                    value = 10,
+                    value = 5,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 2,
                 ),
                 DartBoard.Field(
+                    "5",
                     "T5",
-                    "T5",
-                    value = 15,
+                    value = 5,
+                    maxMultiplication = 1,
+                    defaultMultiplication = 3,
                 ),
             )
         )
@@ -98,7 +117,7 @@ class GameScreenViewModel : ViewModel() {
 
     fun onDart(field: DartBoard.Field) {
         _currentThrow.value?.let {
-            val multiplicator = 1
+            dumpIterator++
 
             val currentThrow: Throw
 
@@ -115,24 +134,73 @@ class GameScreenViewModel : ViewModel() {
 
             val darts = currentThrow.darts.toMutableList()
 
+            val multi = if (field.defaultMultiplication > 1) {
+                    field.defaultMultiplication
+                } else {
+                    _multiplicator.value!!
+                }
+
             darts.add(
                 Dart(
                     id = 0,
                     order = darts.size + 1,
                     throwId = it.id,
-                    multiplicator = multiplicator,
+                    multiplicator = _multiplicator.value!!,
                     number = field.value!!,
-                    sum = multiplicator * field.value,
+                    sum = multi * field.value,
                 )
             )
 
             val copy = currentThrow.copy(
                 throwSummary = darts.sumOf { dart -> dart.sum },
+                lastDartDatetime = dumpIterator.toString(),
             )
 
             copy.darts = darts
 
             _currentThrow.postValue(copy)
+            _multiplicator.postValue(1)
+        }
+    }
+
+    fun onActionButton(field: DartBoard.Field) {
+        when (field.identifier) {
+            "0" -> {
+                onDart(field)
+            }
+            "double" -> {
+                _multiplicator.postValue(
+                    if (_multiplicator.value == 2) {
+                        1
+                    } else {
+                        2
+                    }
+                )
+            }
+            "triple" -> {
+                _multiplicator.postValue(
+                    if (_multiplicator.value == 3) {
+                        1
+                    } else {
+                        3
+                    }
+                )
+            }
+            "deleteLast" -> {
+                _currentThrow.value?.let {
+                    val darts = it.darts.toMutableList()
+
+                    if (darts.removeLastOrNull() != null) {
+                        val copy = it.copy(
+                            throwSummary = darts.sumOf { dart -> dart.sum },
+                        )
+
+                        copy.darts = darts
+
+                        _currentThrow.postValue(copy)
+                    }
+                }
+            }
         }
     }
 }

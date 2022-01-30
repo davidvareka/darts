@@ -5,8 +5,7 @@ object DartBoard {
     private val regularFields = prepareRegularFields()
 
     private val specialFields = listOf(
-        Field("25", "25"),
-//        Field("50", "50"),
+        Field("25", "25", maxMultiplication = 2),
     )
 
     private fun prepareRegularFields(): List<Field> {
@@ -32,5 +31,7 @@ object DartBoard {
         val identifier: String,
         val label: String,
         val value: Int? = identifier.toInt(),
+        val maxMultiplication: Int = 3,
+        val defaultMultiplication: Int = 1,
     )
 }

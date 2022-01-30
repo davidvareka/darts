@@ -57,7 +57,9 @@ fun GameScreen(
 
         GameKeyboard(
             data.targetFields,
+            multiplicator = data.multiplicator,
             onDart = interactions.onDart,
+            onAction = interactions.onActionButton,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -71,9 +73,11 @@ data class GameScreenData(
     val currentThrow: Throw,
     val lastThrow: Throw?,
     val stats: List<StatsRowData>,
+    val multiplicator: Int,
 )
 
 
 data class GameScreenInteractions(
     val onDart: (DartBoard.Field) -> Unit,
+    val onActionButton: (DartBoard.Field) -> Unit,
 )

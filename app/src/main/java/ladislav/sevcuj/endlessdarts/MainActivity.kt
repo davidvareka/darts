@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
 
                         val currentThrow by gameScreenViewModel.currentThrow.observeAsState()
                         val lastThrow by gameScreenViewModel.lastThrow.observeAsState()
+                        val multiplicator by gameScreenViewModel.multiplicator.observeAsState(1)
                         val target by gameScreenViewModel.target.observeAsState()
                         val targetFields by gameScreenViewModel.targetFields.observeAsState()
                         val stats by gameScreenViewModel.stats.observeAsState()
@@ -56,10 +57,12 @@ class MainActivity : ComponentActivity() {
                                     lastThrow = lastThrow,
                                     target = target!!,
                                     targetFields = targetFields!!,
-                                    stats = stats!!
+                                    stats = stats!!,
+                                    multiplicator = multiplicator,
                                 ),
                                 GameScreenInteractions(
                                     onDart = gameScreenViewModel::onDart,
+                                    onActionButton = gameScreenViewModel::onActionButton
                                 )
                             )
                         }

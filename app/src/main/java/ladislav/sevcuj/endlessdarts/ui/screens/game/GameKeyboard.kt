@@ -22,15 +22,27 @@ import ladislav.sevcuj.endlessdarts.ui.theme.colorSuccess
 @Composable
 fun GameKeyboard(
     targetFields: List<DartBoard.Field>,
+    multiplicator: Int,
     onDart: (DartBoard.Field) -> Unit,
+    onAction: (DartBoard.Field) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
-        TargetFields(fields = targetFields, onDart = onDart)
-        RegularFields(onDart)
-        ActionButtons()
+        TargetFields(
+            fields = targetFields,
+            onDart = onDart,
+            multiplicator = multiplicator,
+        )
+        RegularFields(
+            onDart,
+            multiplicator = multiplicator,
+        )
+        ActionButtons(
+            onAction,
+            multiplicator = multiplicator,
+        )
     }
 }
 
@@ -39,14 +51,20 @@ fun GameKeyboard(
 private fun TargetFields(
     fields: List<DartBoard.Field>,
     onDart: (DartBoard.Field) -> Unit,
+    multiplicator: Int
 ) {
-    FieldsRow(fields = fields, onDart = onDart)
+    FieldsRow(
+        fields = fields,
+        onDart = onDart,
+        multiplicator = multiplicator,
+    )
 }
 
 @Composable
 private fun FieldsRow(
     fields: List<DartBoard.Field>,
-    onDart: (DartBoard.Field) -> Unit
+    onDart: (DartBoard.Field) -> Unit,
+    multiplicator: Int,
 ) {
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -56,6 +74,7 @@ private fun FieldsRow(
             FieldButton(
                 field = field,
                 onPress = onDart,
+                disabled = multiplicator > field.maxMultiplication,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -66,6 +85,7 @@ private fun FieldsRow(
 @Composable
 private fun RegularFields(
     onDart: (DartBoard.Field) -> Unit,
+    multiplicator: Int,
 ) {
     val fields = mutableListOf<DartBoard.Field>()
 
@@ -76,6 +96,7 @@ private fun RegularFields(
             FieldsRow(
                 fields = fields,
                 onDart = onDart,
+                multiplicator = multiplicator,
             )
             fields.clear()
         }
@@ -83,32 +104,40 @@ private fun RegularFields(
 }
 
 @Composable
-private fun ActionButtons() {
+private fun ActionButtons(
+    onAction: (DartBoard.Field) -> Unit,
+    multiplicator: Int
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
         FieldButton(
-            field = DartBoard.Field("0", "0"),
-            onPress = {},
+            field = DartBoard.Field("0", "0", 0),
+            onPress = onAction,
+            disabled = multiplicator > 1,
+            modifier = Modifier.weight(1f),
             backgroundColor = Color(0xff212529),
             borderColor = Color(0xff212529),
-            modifier = Modifier.weight(1f),
         )
+
+        val buttonColor = colorSuccess
+        val buttonBackground = Color.White
+
         FieldButton(
             field = DartBoard.Field("double", "double", null),
-            onPress = {},
+            onPress = onAction,
             modifier = Modifier.weight(1f),
-            color = colorSuccess,
+            color = if (multiplicator == 2) buttonBackground else buttonColor,
+            backgroundColor = if (multiplicator == 2) buttonColor else buttonBackground,
             borderColor = colorSuccess,
-            backgroundColor = Color.White,
         )
         FieldButton(
             field = DartBoard.Field("triple", "triple", null),
-            onPress = {},
+            onPress = onAction,
             modifier = Modifier.weight(1f),
-            color = colorSuccess,
+            color = if (multiplicator == 3) buttonBackground else buttonColor,
+            backgroundColor = if (multiplicator == 3) buttonColor else buttonBackground,
             borderColor = colorSuccess,
-            backgroundColor = Color.White,
         )
         FieldButton(
             field = DartBoard.Field(
@@ -116,10 +145,11 @@ private fun ActionButtons() {
                 "delete last",
                 null,
             ),
-            onPress = {},
+            onPress = onAction,
+            disabled = multiplicator > 1,
+            modifier = Modifier.weight(1f),
             backgroundColor = MaterialTheme.colors.error,
             borderColor = MaterialTheme.colors.error,
-            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -129,6 +159,7 @@ private fun FieldButton(
     field: DartBoard.Field,
     onPress: (DartBoard.Field) -> Unit,
     modifier: Modifier = Modifier,
+    disabled: Boolean = false,
     color: Color = Color.White,
     backgroundColor: Color = MaterialTheme.colors.primary,
     borderColor: Color = MaterialTheme.colors.primary,
@@ -142,12 +173,13 @@ private fun FieldButton(
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = backgroundColor,
             ),
-            border = BorderStroke(1.dp, borderColor),
+            enabled = !disabled,
+            border = BorderStroke(1.dp, if (disabled) Color.LightGray else borderColor),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = field.label,
-                color = color,
+                color = if (disabled) Color.Gray else color,
                 fontSize = 12.sp,
             )
         }
@@ -161,7 +193,7 @@ private fun FieldButton(
 @Composable
 private fun GameKeyboardPreview() {
     EndlessDartsTheme {
-        GameKeyboard(listOf(), {})
+        GameKeyboard(listOf(), 1, {}, {},)
     }
 }
 
