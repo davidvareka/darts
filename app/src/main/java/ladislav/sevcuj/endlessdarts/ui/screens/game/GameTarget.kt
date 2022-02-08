@@ -83,6 +83,6 @@ private fun Target(identifier: String) {
 @Composable
 private fun GameTargetPreview() {
     EndlessDartsTheme {
-        GameTarget(Target(1, "20"))
+        GameTarget(Target(1, "20", 20))
     }
 }

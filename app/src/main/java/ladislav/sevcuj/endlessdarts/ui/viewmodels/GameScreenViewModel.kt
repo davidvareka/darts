@@ -1,167 +1,208 @@
 package ladislav.sevcuj.endlessdarts.ui.viewmodels
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import ladislav.sevcuj.endlessdarts.App
 import ladislav.sevcuj.endlessdarts.DartBoard
-import ladislav.sevcuj.endlessdarts.db.Dart
+import ladislav.sevcuj.endlessdarts.DateInstance
+import ladislav.sevcuj.endlessdarts.asDatetimeString
+import ladislav.sevcuj.endlessdarts.db.*
 import ladislav.sevcuj.endlessdarts.db.Target
-import ladislav.sevcuj.endlessdarts.db.Throw
-import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 
-class GameScreenViewModel : ViewModel() {
+class GameScreenViewModel(
+    val user: User,
+    val target: Target,
+    app: App,
+) : ViewModel() {
+    private val sessionRepository = app.sessionRepository
+    private val sessionStatsRepository = app.sessionStatsRepository
+    private val dartRepository = app.dartRepository
+    private val throwRepository = app.throwRepository
 
-    private var dumpIterator: Int = 0
+    private lateinit var session: Session
 
     private val _multiplicator = MutableLiveData(1)
     val multiplicator: LiveData<Int>
         get() = _multiplicator
 
-    private val _currentThrow = MutableLiveData(
-        Throw(
-            id = 0,
-            player = "Player",
-            target = "20"
-        )
-    )
+    private val _currentThrow = MutableLiveData<Throw>()
     val currentThrow: LiveData<Throw>
         get() = _currentThrow
+
+    private val throws: MutableList<Throw> = mutableListOf()
 
     private val _lastThrow = MutableLiveData<Throw?>()
     val lastThrow: LiveData<Throw?>
         get() = _lastThrow
 
-    private val _target = MutableLiveData<Target>()
-    val target: LiveData<Target>
-        get() = _target
-
-    private val _targetFields = MutableLiveData<List<DartBoard.Field>>()
-    val targetFields: LiveData<List<DartBoard.Field>>
-        get() = _targetFields
-
-    private val _stats = MutableLiveData<List<StatsRowData>>()
-    val stats: LiveData<List<StatsRowData>>
+    private val _stats = MutableLiveData<SessionStats>()
+    val stats: LiveData<SessionStats>
         get() = _stats
 
     init {
-        //TODO ID move to constructor
-        _target.postValue(Target(1, "20"))
-
-        //TODO load for target
-        _targetFields.postValue(
-            listOf(
-                DartBoard.Field(
-                    "20",
-                    "20",
-                    maxMultiplication = 1,
-                ),
-                DartBoard.Field(
-                    "20",
-                    "D20",
-                    value = 20,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 2,
-                ),
-                DartBoard.Field(
-                    "20",
-                    "T20",
-                    value = 20,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 3,
-                ),
-                DartBoard.Field(
-                    "1",
-                    "D1",
-                    value = 1,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 2,
-                ),
-                DartBoard.Field(
-                    "1",
-                    "T1",
-                    value = 1,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 3,
-                ),
-                DartBoard.Field(
-                    "5",
-                    "D5",
-                    value = 5,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 2,
-                ),
-                DartBoard.Field(
-                    "5",
-                    "T5",
-                    value = 5,
-                    maxMultiplication = 1,
-                    defaultMultiplication = 3,
-                ),
+        viewModelScope.launch(Dispatchers.IO) {
+            session = Session(
+                id = 0,
+                userId = user.id,
+                startDateTime = DateInstance.now().asDatetimeString(),
             )
-        )
 
-        _stats.postValue(
-            listOf(
-                StatsRowData("Throws", "0"),
-                StatsRowData("Target full success (rate)", "0 (0%)"),
-                StatsRowData("Target full miss (rate)", "0 (0%)"),
-                StatsRowData("Target hits (rate)", "0 (0%)"),
-                StatsRowData("Throw average", "0"),
-                StatsRowData("Throw max", "0"),
-                StatsRowData("140+", "0"),
-                StatsRowData("100+", "0"),
+            _currentThrow.postValue(buildNewThrow())
+
+            sessionRepository.insert(session)
+
+            val stats = SessionStats(
+                id = 0,
+                sessionId = session.id,
             )
-        )
+            sessionStatsRepository.insert(stats)
+            _stats.postValue(stats)
+        }
     }
 
     fun onDart(field: DartBoard.Field) {
-        _currentThrow.value?.let {
-            dumpIterator++
+        viewModelScope.launch(Dispatchers.IO) {
+            _currentThrow.value?.let { current ->
+                val currentThrow: Throw
 
-            val currentThrow: Throw
+                if (current.darts.size >= 3) {
+                    currentThrow = buildNewThrow()
+                    throws.add(current)
+                    _lastThrow.postValue(current)
+                } else {
+                    currentThrow = current
+                }
 
-            if (it.darts.size >= 3) {
-                currentThrow = Throw(
-                    id = 0,
-                    player = "Player",
-                    target = "20"
-                )
-                _lastThrow.postValue(it)
-            } else {
-                currentThrow = it
-            }
+                val darts = currentThrow.darts.toMutableList()
 
-            val darts = currentThrow.darts.toMutableList()
-
-            val multi = if (field.defaultMultiplication > 1) {
+                val multi = if (field.defaultMultiplication > 1) {
                     field.defaultMultiplication
                 } else {
                     _multiplicator.value!!
                 }
 
-            darts.add(
-                Dart(
+                val dart = Dart(
                     id = 0,
                     order = darts.size + 1,
-                    throwId = it.id,
+                    throwId = current.id,
                     multiplicator = _multiplicator.value!!,
                     number = field.value!!,
                     sum = multi * field.value,
                 )
-            )
 
-            val copy = currentThrow.copy(
-                throwSummary = darts.sumOf { dart -> dart.sum },
-                lastDartDatetime = dumpIterator.toString(),
-            )
+                darts.add(dart)
 
-            copy.darts = darts
+                val values = darts.map { item -> item.sum }.toTypedArray()
 
-            _currentThrow.postValue(copy)
-            _multiplicator.postValue(1)
+                val copy = currentThrow.copy(
+                    throwSummary = darts.sumOf { item -> item.sum },
+                    dartsAverage = values.average().toInt(),
+                    dartsCount = darts.size,
+                    doubleCount = darts.count { item -> item.multiplicator == 2 },
+                    tripleCount = darts.count { item -> item.multiplicator == 3 },
+                    targetHits = darts.count { item -> item.number == target.number },
+                    targetSuccess = darts.firstOrNull { item -> item.number != target.number } == null,
+                    firstDartDatetime = current.firstDartDatetime ?: DateInstance.now()
+                        .asDatetimeString(),
+                    lastDartDatetime = DateInstance.now().asDatetimeString(),
+                )
+
+                copy.darts = darts
+
+                _currentThrow.postValue(copy)
+                _multiplicator.postValue(1)
+
+                if (darts.size >= 3) {
+                    calculateStats(copy)
+                }
+
+                if (copy.id > 0) {
+                    throwRepository.update(copy)
+                } else {
+                    throwRepository.insert(copy)
+                }
+
+                dartRepository.insert(dart)
+            }
         }
     }
+
+    private fun calculateStats(lastThrow: Throw) {
+        val darts = lastThrow.darts
+
+        val allDarts = mutableListOf<Dart>()
+        throws.forEach { t ->
+            allDarts.addAll(t.darts)
+        }
+
+        allDarts.addAll(darts)
+
+        val max = darts.map { it.sum }.toTypedArray().sum()
+        val average = allDarts.map { it.sum }.toTypedArray().average()
+        val isFullSuccess = darts.firstOrNull { d -> d.number != target.number } == null
+        val isFullMiss = darts.firstOrNull { d -> d.number == target.number } == null
+
+        _stats.value?.let {
+            var countDouble = 0
+            var countTriple = 0
+            var count100 = 0
+            var count140 = 0
+            var count180 = 0
+            var firstIsSuccess = false
+
+            if (lastThrow.throwSummary > 100) {
+                count100++
+            }
+
+            if (lastThrow.throwSummary > 140) {
+                count140++
+            }
+
+            if (lastThrow.throwSummary > 180) {
+                count180++
+            }
+
+            darts.forEachIndexed { index, dart ->
+                if (index == 0) {
+                    firstIsSuccess = dart.number == target.number
+                }
+
+                if (dart.multiplicator == 2) {
+                    countDouble++
+                }
+
+                if (dart.multiplicator == 3) {
+                    countTriple++
+                }
+            }
+
+            val stats = it.copy(
+                throwsCount = it.throwsCount + 1,
+                dartsCount = it.dartsCount + darts.size,
+                doubleCount = it.doubleCount + countDouble,
+                tripleCount = it.tripleCount + countTriple,
+                firstDartSuccessCount = if (firstIsSuccess) it.firstDartSuccessCount + 1 else it.firstDartSuccessCount,
+                fullSuccessCount = if (isFullSuccess) it.fullSuccessCount + 1 else it.fullSuccessCount,
+                fullMissCount = if (isFullMiss) it.fullMissCount + 1 else it.fullMissCount,
+                average = (average * 100).toInt(),
+                max = if (max > it.max) max else it.max,
+                sum180Count = it.sum180Count + count180,
+                above140Count = it.above140Count + count140,
+                above100Count = it.above100Count + count100,
+            )
+
+            _stats.postValue(stats)
+            sessionStatsRepository.update(stats)
+        }
+    }
+
+    private fun buildNewThrow() = Throw(
+        id = 0,
+        sessionId = session.id,
+        player = user.identifier,
+        target = target.label,
+    )
 
     fun onActionButton(field: DartBoard.Field) {
         when (field.identifier) {
@@ -205,11 +246,19 @@ class GameScreenViewModel : ViewModel() {
     }
 }
 
-class GameScreenViewModelFactory() : ViewModelProvider.Factory {
+class GameScreenViewModelFactory(
+    private val app: App,
+    private val user: User,
+    private val target: Target,
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(GameScreenViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return GameScreenViewModel() as T
+            return GameScreenViewModel(
+                user,
+                target,
+                app,
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

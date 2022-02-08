@@ -1,10 +1,12 @@
 package ladislav.sevcuj.endlessdarts.db
 
 import androidx.room.*
+import ladislav.sevcuj.endlessdarts.DartBoard
+import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 
 @Entity
 data class User(
-    @PrimaryKey val id: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long,
     val identifier: String,
     val isTemporary: Boolean,
 )
@@ -23,10 +25,57 @@ interface UserDao {
 
 @Entity
 data class Session(
-    @PrimaryKey val id: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long,
+    val userId: Long,
     val startDateTime: String,
-    val endDateTime: String,
+    val endDateTime: String? = null,
 )
+
+@Entity(tableName = "session_stats")
+data class SessionStats(
+    @PrimaryKey(autoGenerate = true) val id: Long,
+    val sessionId: Long,
+    val throwsCount: Int = 0,
+    val dartsCount: Int = 0,
+    val doubleCount: Int = 0,
+    val tripleCount: Int = 0,
+    val firstDartSuccessCount: Int = 0,
+    val fullSuccessCount: Int = 0,
+    val fullMissCount: Int = 0,
+    val average: Int = 0,
+    val max: Int = 0,
+    val above140Count: Int = 0,
+    val above100Count: Int = 0,
+    val sum180Count: Int = 0,
+) {
+    fun toRowData(): List<StatsRowData> {
+        return listOf(
+            StatsRowData("Throws", throwsCount.toString()),
+            StatsRowData("Target full success (rate)", "0 (0%)"),
+            StatsRowData("Target full miss (rate)", "0 (0%)"),
+            StatsRowData("Target hits (rate)", "0 (0%)"),
+            StatsRowData("Throw average", (average / 100).toString()),
+            StatsRowData("Throw max", max.toString()),
+            StatsRowData("140+", above140Count.toString()),
+            StatsRowData("100+", above100Count.toString()),
+        )
+    }
+}
+
+@Dao
+interface SessionStatsDao {
+    @Query("SELECT * FROM session_stats WHERE id = :id")
+    fun get(id: Long): SessionStats
+
+    @Insert
+    fun insert(entity: SessionStats)
+
+    @Insert
+    fun update(entity: SessionStats)
+
+    @Delete
+    fun delete(entity: SessionStats)
+}
 
 @Dao
 interface SessionDao {
@@ -34,7 +83,7 @@ interface SessionDao {
     fun get(id: Long): Session
 
     @Insert
-    fun insert(entity: Session): Long
+    fun insert(entity: Session)
 
     @Update
     fun update(entity: Session)
@@ -43,44 +92,82 @@ interface SessionDao {
     fun delete(entity: Session)
 }
 
-@Entity
 data class Target(
-    @PrimaryKey val id: Long,
+    val id: Long,
     val label: String,
-)
-
-@Dao
-interface TargetDao {
-    @Query("SELECT * FROM target WHERE id = :id")
-    fun get(id: Long): Target
-
-    @Insert
-    fun insert(entity: Target): Long
-
-    @Update
-    fun update(entity: Target)
-
-    @Delete
-    fun delete(entity: Target)
+    val number: Int,
+) {
+    fun getPreferredFields(): List<DartBoard.Field> {
+        return listOf(
+            DartBoard.Field(
+                "20",
+                "20",
+                maxMultiplication = 1,
+            ),
+            DartBoard.Field(
+                "20",
+                "D20",
+                value = 20,
+                maxMultiplication = 1,
+                defaultMultiplication = 2,
+            ),
+            DartBoard.Field(
+                "20",
+                "T20",
+                value = 20,
+                maxMultiplication = 1,
+                defaultMultiplication = 3,
+            ),
+            DartBoard.Field(
+                "1",
+                "D1",
+                value = 1,
+                maxMultiplication = 1,
+                defaultMultiplication = 2,
+            ),
+            DartBoard.Field(
+                "1",
+                "T1",
+                value = 1,
+                maxMultiplication = 1,
+                defaultMultiplication = 3,
+            ),
+            DartBoard.Field(
+                "5",
+                "D5",
+                value = 5,
+                maxMultiplication = 1,
+                defaultMultiplication = 2,
+            ),
+            DartBoard.Field(
+                "5",
+                "T5",
+                value = 5,
+                maxMultiplication = 1,
+                defaultMultiplication = 3,
+            ),
+        )
+    }
 }
 
 @Entity(
     ignoredColumns = ["darts"],
 )
 data class Throw(
-    @PrimaryKey val id: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long,
+    val sessionId: Long,
+    val player: String,
+    val throwSummary: Int = 0,
     val dartsAverage: Int = 0,
     val dartsCount: Int = 0,
     val doubleCount: Int = 0,
-    val firstDartDatetime: String? = null,
-    val isLogged: Boolean = false,
-    val lastDartDatetime: String? = null,
-    val player: String,
+    val tripleCount: Int = 0,
     val target: String,
     val targetHits: Int = 0,
     val targetSuccess: Boolean = false,
-    val throwSummary: Int = 0,
-    val tripleCount: Int = 0,
+    val firstDartDatetime: String? = null,
+    val lastDartDatetime: String? = null,
+    val isLogged: Boolean = false,
 ) {
     var darts: List<Dart> = listOf()
 }
@@ -102,7 +189,7 @@ interface ThrowDao {
 
 @Entity
 data class Dart(
-    @PrimaryKey val id: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long,
     val throwId: Long,
     val order: Int,
     val multiplicator: Int,

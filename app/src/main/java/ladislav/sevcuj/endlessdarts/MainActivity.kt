@@ -10,6 +10,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import ladislav.sevcuj.endlessdarts.db.User
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreen
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreenData
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreenInteractions
@@ -23,8 +24,13 @@ import ladislav.sevcuj.endlessdarts.ui.viewmodels.ScoreScreenViewModelFactory
 
 @ExperimentalFoundationApi
 class MainActivity : ComponentActivity() {
+    private lateinit var app: App
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        app = application as App
+
         setContent {
             EndlessDartsTheme {
                 val navController = rememberNavController()
@@ -35,29 +41,41 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("game") {
+                        val target = ladislav.sevcuj.endlessdarts.db.Target(
+                            id = 1,
+                            label = "20",
+                            number = 20,
+                        )
+
+                        val user = User(
+                            id = 0,
+                            identifier = "User 1",
+                            isTemporary = false,
+                        )
+
                         val gameScreenViewModel: GameScreenViewModel by viewModels {
-                            GameScreenViewModelFactory()
+                            GameScreenViewModelFactory(
+                                app = app,
+                                user = user,
+                                target = target,
+                            )
                         }
 
                         val currentThrow by gameScreenViewModel.currentThrow.observeAsState()
                         val lastThrow by gameScreenViewModel.lastThrow.observeAsState()
                         val multiplicator by gameScreenViewModel.multiplicator.observeAsState(1)
-                        val target by gameScreenViewModel.target.observeAsState()
-                        val targetFields by gameScreenViewModel.targetFields.observeAsState()
                         val stats by gameScreenViewModel.stats.observeAsState()
 
                         if (currentThrow != null
-                            && target != null
-                            && targetFields != null
                             && stats != null
                         ) {
                             GameScreen(
                                 GameScreenData(
                                     currentThrow = currentThrow!!,
                                     lastThrow = lastThrow,
-                                    target = target!!,
-                                    targetFields = targetFields!!,
-                                    stats = stats!!,
+                                    target = gameScreenViewModel.target,
+                                    targetFields = gameScreenViewModel.target.getPreferredFields(),
+                                    stats = stats!!.toRowData(),
                                     multiplicator = multiplicator,
                                 ),
                                 GameScreenInteractions(

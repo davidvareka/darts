@@ -13,7 +13,7 @@ class App : Application() {
     val database by lazy { AppDatabase.getDatabase(this, applicationScope) }
     val useRepository by lazy { UserRepository(database.userDao()) }
     val sessionRepository by lazy { SessionRepository(database.sessionDao()) }
-    val targetRepository by lazy { TargetRepository(database.targetDao()) }
+    val sessionStatsRepository by lazy { SessionStatsRepository(database.sessionStatsDao()) }
     val throwRepository by lazy { ThrowRepository(database.throwDao()) }
     val dartRepository by lazy { DartRepository(database.dartDao()) }
 }

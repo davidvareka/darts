@@ -220,6 +220,7 @@ private fun GameDashboardPreview() {
         GameDashboard(
             Throw(
                 id = 1,
+                sessionId = 1,
                 player = "Preview",
                 target = "20",
             ),

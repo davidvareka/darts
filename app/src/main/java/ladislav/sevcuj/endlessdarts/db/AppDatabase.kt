@@ -6,21 +6,20 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
-import ladislav.sevcuj.endlessdarts.db.*
 
 @Database(
     entities = [
         User::class,
         Session::class,
+        SessionStats::class,
         Throw::class,
-        Target::class,
         Dart::class,
     ], version = 1, exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun sessionDao(): SessionDao
-    abstract fun targetDao(): TargetDao
+    abstract fun sessionStatsDao(): SessionStatsDao
     abstract fun throwDao(): ThrowDao
     abstract fun dartDao(): DartDao
 
