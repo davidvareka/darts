@@ -19,12 +19,16 @@ class UserRepository(
 class SessionRepository(
     private val dao: SessionDao,
 ) {
-    fun insert(entity: Session) {
+    fun insert(entity: Session): Long {
         return dao.insert(entity)
     }
 
     fun read(id: Long): Session {
         return dao.get(id)
+    }
+
+    fun getLast(userId: Long): Session? {
+        return dao.getLast(userId)
     }
 
     fun update(entity: Session) {
@@ -36,7 +40,7 @@ class SessionStatsRepository(
     private val dao: SessionStatsDao,
 ) {
     fun insert(entity: SessionStats) {
-        return dao.insert(entity)
+        dao.insert(entity)
     }
 
     fun read(id: Long): SessionStats {
@@ -51,8 +55,8 @@ class SessionStatsRepository(
 class ThrowRepository(
     private val dao: ThrowDao,
 ) {
-    fun insert(entity: Throw) {
-        dao.insert(entity)
+    fun insert(entity: Throw): Long {
+        return dao.insert(entity)
     }
 
     fun read(id: Long): Throw {

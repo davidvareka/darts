@@ -11,7 +11,7 @@ import ladislav.sevcuj.endlessdarts.db.*
 import ladislav.sevcuj.endlessdarts.db.Target
 
 class GameScreenViewModel(
-    val user: User,
+    private val user: User,
     val target: Target,
     app: App,
 ) : ViewModel() {
@@ -48,15 +48,15 @@ class GameScreenViewModel(
                 startDateTime = DateInstance.now().asDatetimeString(),
             )
 
-            _currentThrow.postValue(buildNewThrow())
-
-            sessionRepository.insert(session)
+            val sessionId = sessionRepository.insert(session)
 
             val stats = SessionStats(
-                id = 0,
-                sessionId = session.id,
+                sessionId = sessionId,
             )
+
             sessionStatsRepository.insert(stats)
+
+            _currentThrow.postValue(buildNewThrow())
             _stats.postValue(stats)
         }
     }
@@ -95,7 +95,7 @@ class GameScreenViewModel(
 
                 val values = darts.map { item -> item.sum }.toTypedArray()
 
-                val copy = currentThrow.copy(
+                var copy = currentThrow.copy(
                     throwSummary = darts.sumOf { item -> item.sum },
                     dartsAverage = values.average().toInt(),
                     dartsCount = darts.size,
@@ -108,6 +108,13 @@ class GameScreenViewModel(
                     lastDartDatetime = DateInstance.now().asDatetimeString(),
                 )
 
+                if (copy.id > 0) {
+                    throwRepository.update(copy)
+                } else {
+                    val id = throwRepository.insert(copy)
+                    copy = copy.copy(id = id)
+                }
+
                 copy.darts = darts
 
                 _currentThrow.postValue(copy)
@@ -115,12 +122,6 @@ class GameScreenViewModel(
 
                 if (darts.size >= 3) {
                     calculateStats(copy)
-                }
-
-                if (copy.id > 0) {
-                    throwRepository.update(copy)
-                } else {
-                    throwRepository.insert(copy)
                 }
 
                 dartRepository.insert(dart)
@@ -144,12 +145,14 @@ class GameScreenViewModel(
         val isFullMiss = darts.firstOrNull { d -> d.number == target.number } == null
 
         _stats.value?.let {
+            var targetHits = 0
             var countDouble = 0
             var countTriple = 0
             var count100 = 0
             var count140 = 0
             var count180 = 0
             var firstIsSuccess = false
+            var isFail = false
 
             if (lastThrow.throwSummary > 100) {
                 count100++
@@ -163,9 +166,21 @@ class GameScreenViewModel(
                 count180++
             }
 
+            var isOk = true
+
             darts.forEachIndexed { index, dart ->
-                if (index == 0) {
-                    firstIsSuccess = dart.number == target.number
+                if (dart.number == target.number) {
+                    targetHits++
+
+                    if (index == 0) {
+                        firstIsSuccess = true
+                    }
+                } else {
+                    if (index == 2 && isOk) {
+                        isFail = true
+                    }
+
+                    isOk = false
                 }
 
                 if (dart.multiplicator == 2) {
@@ -185,15 +200,17 @@ class GameScreenViewModel(
                 firstDartSuccessCount = if (firstIsSuccess) it.firstDartSuccessCount + 1 else it.firstDartSuccessCount,
                 fullSuccessCount = if (isFullSuccess) it.fullSuccessCount + 1 else it.fullSuccessCount,
                 fullMissCount = if (isFullMiss) it.fullMissCount + 1 else it.fullMissCount,
+                targetHitsCount = it.targetHitsCount + targetHits,
                 average = (average * 100).toInt(),
                 max = if (max > it.max) max else it.max,
                 sum180Count = it.sum180Count + count180,
                 above140Count = it.above140Count + count140,
                 above100Count = it.above100Count + count100,
+                failCount = if (isFail) it.failCount + 1 else it.failCount,
             )
 
-            _stats.postValue(stats)
             sessionStatsRepository.update(stats)
+            _stats.postValue(stats)
         }
     }
 

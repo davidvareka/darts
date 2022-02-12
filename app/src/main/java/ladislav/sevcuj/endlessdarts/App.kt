@@ -11,7 +11,7 @@ class App : Application() {
     // Using by lazy so the database and the repository are only created when they're needed
     // rather than when the application starts
     val database by lazy { AppDatabase.getDatabase(this, applicationScope) }
-    val useRepository by lazy { UserRepository(database.userDao()) }
+    val userRepository by lazy { UserRepository(database.userDao()) }
     val sessionRepository by lazy { SessionRepository(database.sessionDao()) }
     val sessionStatsRepository by lazy { SessionStatsRepository(database.sessionStatsDao()) }
     val throwRepository by lazy { ThrowRepository(database.throwDao()) }

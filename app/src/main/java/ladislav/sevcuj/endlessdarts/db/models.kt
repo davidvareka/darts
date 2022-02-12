@@ -2,6 +2,7 @@ package ladislav.sevcuj.endlessdarts.db
 
 import androidx.room.*
 import ladislav.sevcuj.endlessdarts.DartBoard
+import ladislav.sevcuj.endlessdarts.toDecimalString
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 
 @Entity
@@ -33,10 +34,10 @@ data class Session(
 
 @Entity(tableName = "session_stats")
 data class SessionStats(
-    @PrimaryKey(autoGenerate = true) val id: Long,
-    val sessionId: Long,
+    @PrimaryKey val sessionId: Long,
     val throwsCount: Int = 0,
     val dartsCount: Int = 0,
+    val targetHitsCount: Int = 0,
     val doubleCount: Int = 0,
     val tripleCount: Int = 0,
     val firstDartSuccessCount: Int = 0,
@@ -47,30 +48,59 @@ data class SessionStats(
     val above140Count: Int = 0,
     val above100Count: Int = 0,
     val sum180Count: Int = 0,
+    val failCount: Int = 0,
 ) {
-    fun toRowData(): List<StatsRowData> {
+    fun toSimpleData(): List<StatsRowData> {
+        val fullSuccessPercent = getPercent(fullMissCount, throwsCount)
+        val fullMissPercent = getPercent(fullMissCount, throwsCount)
+        val targetHitsPercent = getPercent(targetHitsCount, dartsCount)
+
         return listOf(
             StatsRowData("Throws", throwsCount.toString()),
-            StatsRowData("Target full success (rate)", "0 (0%)"),
-            StatsRowData("Target full miss (rate)", "0 (0%)"),
-            StatsRowData("Target hits (rate)", "0 (0%)"),
+            StatsRowData(
+                "Target full success (rate)",
+                "$fullSuccessCount (${fullSuccessPercent.toDecimalString()}%)"
+            ),
+            StatsRowData("Target full miss (rate)", "$fullMissCount (${fullMissPercent.toDecimalString()}%)"),
+            StatsRowData("Target hits (rate)",  "$targetHitsCount (${targetHitsPercent.toDecimalString()}%)"),
             StatsRowData("Throw average", (average / 100).toString()),
             StatsRowData("Throw max", max.toString()),
             StatsRowData("140+", above140Count.toString()),
             StatsRowData("100+", above100Count.toString()),
         )
     }
+
+    fun toFullData(): List<StatsRowData> {
+        val simpleList = toSimpleData().toMutableList()
+
+        val startOkPercent = getPercent(firstDartSuccessCount, dartsCount)
+        val failPercent = getPercent(failCount, throwsCount)
+        val potentialCount = fullSuccessCount + failCount
+        val potentialPercent = getPercent(potentialCount, throwsCount)
+
+        simpleList.add(StatsRowData("Double", doubleCount.toString()),)
+        simpleList.add(StatsRowData("Triple", tripleCount.toString()),)
+        simpleList.add(StatsRowData("Start OK",  "$targetHitsCount (${startOkPercent.toDecimalString()}%)"))
+        simpleList.add(StatsRowData("Fail",  "$failCount (${failPercent.toDecimalString()}%)"))
+        simpleList.add(StatsRowData("Potential",  "$potentialCount (${potentialPercent.toDecimalString()}%)"))
+
+        return simpleList.toList()
+    }
+
+    private fun getPercent(value: Int, total: Int): Double {
+        return if (value == 0) 0.0 else (value.toDouble() / total.toDouble()) * 100
+    }
 }
 
 @Dao
 interface SessionStatsDao {
-    @Query("SELECT * FROM session_stats WHERE id = :id")
+    @Query("SELECT * FROM session_stats WHERE sessionId = :id")
     fun get(id: Long): SessionStats
 
     @Insert
     fun insert(entity: SessionStats)
 
-    @Insert
+    @Update
     fun update(entity: SessionStats)
 
     @Delete
@@ -82,8 +112,11 @@ interface SessionDao {
     @Query("SELECT * FROM session WHERE id = :id")
     fun get(id: Long): Session
 
+    @Query("SELECT * FROM session WHERE userId = :userId ORDER BY id DESC LIMIT 1")
+    fun getLast(userId: Long): Session?
+
     @Insert
-    fun insert(entity: Session)
+    fun insert(entity: Session): Long
 
     @Update
     fun update(entity: Session)

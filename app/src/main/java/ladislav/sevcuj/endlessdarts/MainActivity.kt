@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             EndlessDartsTheme {
                 val navController = rememberNavController()
 
-                NavHost(navController = navController, startDestination = "game") {
+                NavHost(navController = navController, startDestination = "score") {
                     composable("login") {
 
                     }
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                         )
 
                         val user = User(
-                            id = 0,
+                            id = 1,
                             identifier = "User 1",
                             isTemporary = false,
                         )
@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
                                     lastThrow = lastThrow,
                                     target = gameScreenViewModel.target,
                                     targetFields = gameScreenViewModel.target.getPreferredFields(),
-                                    stats = stats!!.toRowData(),
+                                    stats = stats!!.toSimpleData(),
                                     multiplicator = multiplicator,
                                 ),
                                 GameScreenInteractions(
@@ -87,11 +87,17 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("score") {
+                        val user = User(
+                            id = 1,
+                            identifier = "User 1",
+                            isTemporary = false,
+                        )
+
                         val scoreScreenViewModel: ScoreScreenViewModel by viewModels {
-                            ScoreScreenViewModelFactory()
+                            ScoreScreenViewModelFactory(app, user)
                         }
 
-                        val throws by scoreScreenViewModel.throws.observeAsState()
+                        val throws by scoreScreenViewModel.throws.observeAsState(listOf())
                         val stats by scoreScreenViewModel.stats.observeAsState()
 
                         if (throws != null && stats != null) {
