@@ -1,12 +1,11 @@
 package ladislav.sevcuj.endlessdarts.ui.viewmodels
 
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import ladislav.sevcuj.endlessdarts.App
-import ladislav.sevcuj.endlessdarts.DartBoard
-import ladislav.sevcuj.endlessdarts.DateInstance
-import ladislav.sevcuj.endlessdarts.asDatetimeString
+import ladislav.sevcuj.endlessdarts.*
 import ladislav.sevcuj.endlessdarts.db.*
 import ladislav.sevcuj.endlessdarts.db.Target
 
@@ -14,6 +13,7 @@ class GameScreenViewModel(
     private val user: User,
     val target: Target,
     app: App,
+    private val globalViewModel: GlobalViewModel,
 ) : ViewModel() {
     private val sessionRepository = app.sessionRepository
     private val sessionStatsRepository = app.sessionStatsRepository
@@ -42,19 +42,26 @@ class GameScreenViewModel(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            session = Session(
-                id = 0,
-                userId = user.id,
-                startDateTime = DateInstance.now().asDatetimeString(),
+            val existingSession = sessionRepository.getForDay(
+                user.id,
+                DateInstance.now().asDateString(),
             )
 
-            val sessionId = sessionRepository.insert(session)
+            val stats: SessionStats
 
-            val stats = SessionStats(
-                sessionId = sessionId,
-            )
-
-            sessionStatsRepository.insert(stats)
+            if (existingSession != null) {
+                session = existingSession
+                stats = sessionStatsRepository.read(session.id)
+            } else {
+                session = Session(
+                    id = 0,
+                    userId = user.id,
+                    startDateTime = DateInstance.now().asDatetimeString(),
+                )
+                stats = SessionStats(
+                    sessionId = 0,
+                )
+            }
 
             _currentThrow.postValue(buildNewThrow())
             _stats.postValue(stats)
@@ -63,73 +70,82 @@ class GameScreenViewModel(
 
     fun onDart(field: DartBoard.Field) {
         viewModelScope.launch(Dispatchers.IO) {
-            _currentThrow.value?.let { current ->
-                val currentThrow: Throw
+            var currentThrow = _currentThrow.value!!
 
-                if (current.darts.size >= 3) {
-                    currentThrow = buildNewThrow()
-                    throws.add(current)
-                    _lastThrow.postValue(current)
+            if (currentThrow.darts.size >= 3) {
+                throws.add(currentThrow)
+                _lastThrow.postValue(currentThrow)
+                currentThrow = buildNewThrow()
+            }
+
+            val darts = currentThrow.darts.toMutableList()
+
+            val multi = if (field.defaultMultiplication > 1) {
+                field.defaultMultiplication
+            } else {
+                _multiplicator.value!!
+            }
+
+            val dart = Dart(
+                id = 0,
+                order = darts.size + 1,
+                throwId = currentThrow.id,
+                multiplicator = _multiplicator.value!!,
+                number = field.value!!,
+                sum = multi * field.value,
+            )
+
+            darts.add(dart)
+
+            val values = darts.map { item -> item.sum }.toTypedArray()
+
+            val newThrow = currentThrow.copy(
+                throwSummary = darts.sumOf { item -> item.sum },
+                dartsAverage = values.average().toInt(),
+                dartsCount = darts.size,
+                doubleCount = darts.count { item -> item.multiplicator == 2 },
+                tripleCount = darts.count { item -> item.multiplicator == 3 },
+                targetHits = darts.count { item -> item.number == target.number },
+                targetSuccess = darts.firstOrNull { item -> item.number != target.number } == null,
+                firstDartDatetime = currentThrow.firstDartDatetime ?: DateInstance.now()
+                    .asDatetimeString(),
+                lastDartDatetime = DateInstance.now().asDatetimeString(),
+            )
+
+            newThrow.darts = darts
+
+            _currentThrow.postValue(newThrow)
+            _multiplicator.postValue(1)
+
+            if (newThrow.darts.size >= 3) {
+                val sessionId = if (session.id == 0L) {
+                    val id = sessionRepository.insert(session)
+                    session = session.copy(id = id)
+
+                    //compensate disk delay
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        globalViewModel.onSessionCreated.postValue(id)
+                    }, 200)
+
+                    id
                 } else {
-                    currentThrow = current
+                    session.id
                 }
 
-                val darts = currentThrow.darts.toMutableList()
+                val id = throwRepository.insert(newThrow.copy(sessionId = sessionId))
 
-                val multi = if (field.defaultMultiplication > 1) {
-                    field.defaultMultiplication
-                } else {
-                    _multiplicator.value!!
+                newThrow.darts.forEachIndexed { index, newDart ->
+                    dartRepository.insert(newDart.copy(throwId = id, order = index + 1))
                 }
 
-                val dart = Dart(
-                    id = 0,
-                    order = darts.size + 1,
-                    throwId = current.id,
-                    multiplicator = _multiplicator.value!!,
-                    number = field.value!!,
-                    sum = multi * field.value,
-                )
-
-                darts.add(dart)
-
-                val values = darts.map { item -> item.sum }.toTypedArray()
-
-                var copy = currentThrow.copy(
-                    throwSummary = darts.sumOf { item -> item.sum },
-                    dartsAverage = values.average().toInt(),
-                    dartsCount = darts.size,
-                    doubleCount = darts.count { item -> item.multiplicator == 2 },
-                    tripleCount = darts.count { item -> item.multiplicator == 3 },
-                    targetHits = darts.count { item -> item.number == target.number },
-                    targetSuccess = darts.firstOrNull { item -> item.number != target.number } == null,
-                    firstDartDatetime = current.firstDartDatetime ?: DateInstance.now()
-                        .asDatetimeString(),
-                    lastDartDatetime = DateInstance.now().asDatetimeString(),
-                )
-
-                if (copy.id > 0) {
-                    throwRepository.update(copy)
-                } else {
-                    val id = throwRepository.insert(copy)
-                    copy = copy.copy(id = id)
-                }
-
-                copy.darts = darts
-
-                _currentThrow.postValue(copy)
-                _multiplicator.postValue(1)
-
-                if (darts.size >= 3) {
-                    calculateStats(copy)
-                }
-
-                dartRepository.insert(dart)
+                calculateStats(newThrow)
             }
         }
     }
 
     private fun calculateStats(lastThrow: Throw) {
+        val stats = _stats.value!!
+        val statsAreStored = stats.sessionId > 0
         val darts = lastThrow.darts
 
         val allDarts = mutableListOf<Dart>()
@@ -144,77 +160,82 @@ class GameScreenViewModel(
         val isFullSuccess = darts.firstOrNull { d -> d.number != target.number } == null
         val isFullMiss = darts.firstOrNull { d -> d.number == target.number } == null
 
-        _stats.value?.let {
-            var targetHits = 0
-            var countDouble = 0
-            var countTriple = 0
-            var count100 = 0
-            var count140 = 0
-            var count180 = 0
-            var firstIsSuccess = false
-            var isFail = false
+        var targetHits = 0
+        var countDouble = 0
+        var countTriple = 0
+        var count100 = 0
+        var count140 = 0
+        var count180 = 0
+        var firstIsSuccess = false
+        var isFail = false
 
-            if (lastThrow.throwSummary > 100) {
-                count100++
-            }
-
-            if (lastThrow.throwSummary > 140) {
-                count140++
-            }
-
-            if (lastThrow.throwSummary > 180) {
-                count180++
-            }
-
-            var isOk = true
-
-            darts.forEachIndexed { index, dart ->
-                if (dart.number == target.number) {
-                    targetHits++
-
-                    if (index == 0) {
-                        firstIsSuccess = true
-                    }
-                } else {
-                    if (index == 2 && isOk) {
-                        isFail = true
-                    }
-
-                    isOk = false
-                }
-
-                if (dart.multiplicator == 2) {
-                    countDouble++
-                }
-
-                if (dart.multiplicator == 3) {
-                    countTriple++
-                }
-            }
-
-            val stats = it.copy(
-                throwsCount = it.throwsCount + 1,
-                dartsCount = it.dartsCount + darts.size,
-                doubleCount = it.doubleCount + countDouble,
-                tripleCount = it.tripleCount + countTriple,
-                firstDartSuccessCount = if (firstIsSuccess) it.firstDartSuccessCount + 1 else it.firstDartSuccessCount,
-                fullSuccessCount = if (isFullSuccess) it.fullSuccessCount + 1 else it.fullSuccessCount,
-                fullMissCount = if (isFullMiss) it.fullMissCount + 1 else it.fullMissCount,
-                targetHitsCount = it.targetHitsCount + targetHits,
-                average = (average * 100).toInt(),
-                max = if (max > it.max) max else it.max,
-                sum180Count = it.sum180Count + count180,
-                above140Count = it.above140Count + count140,
-                above100Count = it.above100Count + count100,
-                failCount = if (isFail) it.failCount + 1 else it.failCount,
-            )
-
-            sessionStatsRepository.update(stats)
-            _stats.postValue(stats)
+        if (lastThrow.throwSummary > 100) {
+            count100++
         }
+
+        if (lastThrow.throwSummary > 140) {
+            count140++
+        }
+
+        if (lastThrow.throwSummary > 180) {
+            count180++
+        }
+
+        var isOk = true
+
+        darts.forEachIndexed { index, dart ->
+            if (dart.number == target.number) {
+                targetHits++
+
+                if (index == 0) {
+                    firstIsSuccess = true
+                }
+            } else {
+                if (index == 2 && isOk) {
+                    isFail = true
+                }
+
+                isOk = false
+            }
+
+            if (dart.multiplicator == 2) {
+                countDouble++
+            }
+
+            if (dart.multiplicator == 3) {
+                countTriple++
+            }
+        }
+
+        val newStats = stats.copy(
+            sessionId = session.id,
+            throwsCount = stats.throwsCount + 1,
+            dartsCount = stats.dartsCount + darts.size,
+            doubleCount = stats.doubleCount + countDouble,
+            tripleCount = stats.tripleCount + countTriple,
+            firstDartSuccessCount = if (firstIsSuccess) stats.firstDartSuccessCount + 1 else stats.firstDartSuccessCount,
+            fullSuccessCount = if (isFullSuccess) stats.fullSuccessCount + 1 else stats.fullSuccessCount,
+            fullMissCount = if (isFullMiss) stats.fullMissCount + 1 else stats.fullMissCount,
+            targetHitsCount = stats.targetHitsCount + targetHits,
+            average = (average * 100).toInt(),
+            max = if (max > stats.max) max else stats.max,
+            sum180Count = stats.sum180Count + count180,
+            above140Count = stats.above140Count + count140,
+            above100Count = stats.above100Count + count100,
+            failCount = if (isFail) stats.failCount + 1 else stats.failCount,
+        )
+
+        if (statsAreStored) {
+            sessionStatsRepository.update(newStats)
+        } else {
+            sessionStatsRepository.insert(newStats)
+        }
+
+        _stats.postValue(newStats)
     }
 
-    private fun buildNewThrow() = Throw(
+    private fun buildNewThrow(
+    ) = Throw(
         id = 0,
         sessionId = session.id,
         player = user.identifier,
@@ -267,6 +288,7 @@ class GameScreenViewModelFactory(
     private val app: App,
     private val user: User,
     private val target: Target,
+    private val globalViewModel: GlobalViewModel,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(GameScreenViewModel::class.java)) {
@@ -275,6 +297,7 @@ class GameScreenViewModelFactory(
                 user,
                 target,
                 app,
+                globalViewModel
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

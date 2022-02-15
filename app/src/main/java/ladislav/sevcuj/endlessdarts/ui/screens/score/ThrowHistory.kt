@@ -29,14 +29,27 @@ fun ThrowHistory(
         modifier = modifier,
     ) {
         ThrowHistoryHead()
+
         Divider(color = Color.Black)
-        ThrowHistoryBody(data)
-        Divider(color = Color.Black)
-        SpacerHorizontal(Ui.paddingHalved)
-        Text(
-            text = "Last throw on top",
-            color = Color.Gray,
-        )
+
+        if (data.isEmpty()) {
+            Text(
+                "No data available",
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            )
+        } else {
+            ThrowHistoryBody(data)
+            Divider(color = Color.Black)
+            SpacerHorizontal(Ui.paddingHalved)
+            Text(
+                text = "Last throw on top",
+                color = Color.Gray,
+            )
+        }
     }
 }
 
@@ -204,12 +217,13 @@ private fun ThrowHistoryValueCell(
 }
 
 data class ThrowHistoryRowData(
+    val throwId: Long,
     val target: String,
     val dart1: Dart,
     val dart2: Dart,
     val dart3: Dart,
     val sum: Int,
-    val average: Double,
+    val average: Int,
 ) {
     data class Dart(
         val value: String,
@@ -228,28 +242,31 @@ fun ThrowHistoryPreview() {
         ) {
             ThrowHistory(listOf(
                 ThrowHistoryRowData(
+                    1,
                     "20",
                     ThrowHistoryRowData.Dart("20", true),
                     ThrowHistoryRowData.Dart("15", false),
                     ThrowHistoryRowData.Dart("T20", true),
                     95,
-                    31.67,
+                    31,
                 ),
                 ThrowHistoryRowData(
+                    2,
                     "20",
                     ThrowHistoryRowData.Dart("1", false),
                     ThrowHistoryRowData.Dart("1", false),
                     ThrowHistoryRowData.Dart("1", false),
                     3,
-                    1.0,
+                    1,
                 ),
                 ThrowHistoryRowData(
+                    3,
                     "20",
                     ThrowHistoryRowData.Dart("5", false),
                     ThrowHistoryRowData.Dart("5", false),
                     ThrowHistoryRowData.Dart("5", false),
                     15,
-                    5.0,
+                    5,
                 ),
             ))
         }

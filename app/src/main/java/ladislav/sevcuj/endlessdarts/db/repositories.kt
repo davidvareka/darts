@@ -1,5 +1,7 @@
 package ladislav.sevcuj.endlessdarts.db
 
+import kotlinx.coroutines.flow.Flow
+
 class UserRepository(
     private val dao: UserDao,
 ) {
@@ -31,6 +33,11 @@ class SessionRepository(
         return dao.getLast(userId)
     }
 
+    fun getForDay(userId: Long, date: String): Session? {
+        val all = getLast(userId)
+        return dao.getForDate(userId, date)
+    }
+
     fun update(entity: Session) {
         dao.update(entity)
     }
@@ -45,6 +52,10 @@ class SessionStatsRepository(
 
     fun read(id: Long): SessionStats {
         return dao.get(id)
+    }
+
+    fun readFlow(id: Long): Flow<SessionStats> {
+        return dao.getFlow(id)
     }
 
     fun update(entity: SessionStats) {
@@ -63,12 +74,20 @@ class ThrowRepository(
         return dao.get(id)
     }
 
+    fun readAll(): List<Throw> {
+        return dao.readAll()
+    }
+
     fun update(entity: Throw) {
         dao.update(entity)
     }
 
     fun delete(entity: Throw) {
         dao.delete(entity)
+    }
+
+    fun readForSession(id: Long): Flow<List<Throw>> {
+        return dao.readForSession(id)
     }
 }
 
@@ -89,5 +108,9 @@ class DartRepository(
 
     fun update(entity: Dart) {
         dao.update(entity)
+    }
+
+    fun readForThrow(throwId: Long): List<Dart> {
+        return dao.readForThrow(throwId)
     }
 }

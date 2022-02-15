@@ -1,8 +1,10 @@
 package ladislav.sevcuj.endlessdarts.db
 
 import androidx.room.*
+import kotlinx.coroutines.flow.Flow
 import ladislav.sevcuj.endlessdarts.DartBoard
 import ladislav.sevcuj.endlessdarts.toDecimalString
+import ladislav.sevcuj.endlessdarts.ui.screens.score.ThrowHistoryRowData
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 
 @Entity
@@ -97,6 +99,9 @@ interface SessionStatsDao {
     @Query("SELECT * FROM session_stats WHERE sessionId = :id")
     fun get(id: Long): SessionStats
 
+    @Query("SELECT * FROM session_stats WHERE sessionId = :id")
+    fun getFlow(id: Long): Flow<SessionStats>
+
     @Insert
     fun insert(entity: SessionStats)
 
@@ -114,6 +119,9 @@ interface SessionDao {
 
     @Query("SELECT * FROM session WHERE userId = :userId ORDER BY id DESC LIMIT 1")
     fun getLast(userId: Long): Session?
+
+    @Query("SELECT * FROM session WHERE userId = :userId AND substr(startDateTime, 1, 10) = :date ORDER BY id DESC LIMIT 1")
+    fun getForDate(userId: Long, date: String): Session?
 
     @Insert
     fun insert(entity: Session): Long
@@ -203,12 +211,48 @@ data class Throw(
     val isLogged: Boolean = false,
 ) {
     var darts: List<Dart> = listOf()
+
+    fun toHistoryRowData(
+        dartRepository: DartRepository,
+    ): ThrowHistoryRowData {
+        val throwTarget = Target(
+            id = 1,
+            label = "20",
+            number = 20,
+        )
+        val darts = dartRepository.readForThrow(id)
+
+        return ThrowHistoryRowData(
+            throwId = id,
+            target = target,
+            dart1 = ThrowHistoryRowData.Dart(
+                value = darts[0].sum.toString(),
+                isSuccess = darts[0].number == throwTarget.number
+            ),
+            dart2 = ThrowHistoryRowData.Dart(
+                value = darts[1].sum.toString(),
+                isSuccess = darts[1].number == throwTarget.number
+            ),
+            dart3 = ThrowHistoryRowData.Dart(
+                value = darts[2].sum.toString(),
+                isSuccess = darts[2].number == throwTarget.number
+            ),
+            sum = throwSummary,
+            average = dartsAverage,
+        )
+    }
 }
 
 @Dao
 interface ThrowDao {
     @Query("SELECT * FROM throw WHERE id = :id")
     fun get(id: Long): Throw
+
+    @Query("SELECT * FROM throw")
+    fun readAll(): List<Throw>
+
+    @Query("SELECT * FROM throw WHERE sessionId = :sessionId ORDER BY id DESC")
+    fun readForSession(sessionId: Long): Flow<List<Throw>>
 
     @Insert
     fun insert(entity: Throw): Long
@@ -234,6 +278,9 @@ data class Dart(
 interface DartDao {
     @Query("SELECT * FROM dart WHERE id = :id")
     fun get(id: Long): Dart
+
+    @Query("SELECT * FROM dart WHERE throwId = :throwId")
+    fun readForThrow(throwId: Long): List<Dart>
 
     @Insert
     fun insert(entity: Dart): Long

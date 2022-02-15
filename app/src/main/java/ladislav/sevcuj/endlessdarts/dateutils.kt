@@ -5,6 +5,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @SuppressLint("SimpleDateFormat")
+fun Calendar.asDateString(): String {
+    return SimpleDateFormat("dd.MM.yyyy").format(time)
+}
+
+@SuppressLint("SimpleDateFormat")
 fun Calendar.asDatetimeString(): String {
     return SimpleDateFormat("dd.MM.yyyy HH:mm").format(time)
 }
