@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import ladislav.sevcuj.endlessdarts.db.Session
 import ladislav.sevcuj.endlessdarts.db.SessionStats
 import ladislav.sevcuj.endlessdarts.db.User
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreen
@@ -34,6 +35,7 @@ import ladislav.sevcuj.endlessdarts.ui.theme.EndlessDartsTheme
 import ladislav.sevcuj.endlessdarts.ui.viewmodels.*
 import ladislav.sevcuj.endlessdarts.ui.widgets.NavigationIcon
 import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerHorizontal
+import java.util.*
 
 @ExperimentalFoundationApi
 class MainActivity : ComponentActivity() {
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             EndlessDartsTheme {
-                val startScreen = "game"
+                val startScreen = "score"
                 val navController = rememberNavController()
                 var route by remember {
                     mutableStateOf(
@@ -177,16 +179,39 @@ class MainActivity : ComponentActivity() {
                                 scoreScreenViewModel.load(it)
                             }
 
+                            val now = DateInstance.now()
+
+                            val prev = DateInstance.now()
+                            prev.add(Calendar.DAY_OF_MONTH, -1)
+
+                            val next = DateInstance.now()
+                            next.add(Calendar.DAY_OF_MONTH, 1)
+
+                            val session by scoreScreenViewModel.selectedSession.observeAsState(
+                                initial = Session(
+                                    0,
+                                    user.id,
+                                    now.asDatetimeString(),
+                                )
+                            )
+                            val prevSession by scoreScreenViewModel.prevSession.observeAsState(prev.asDateString())
+                            val nextSession by scoreScreenViewModel.nextSession.observeAsState(next.asDateString())
                             val throws by scoreScreenViewModel.throws.observeAsState(listOf())
                             val stats by scoreScreenViewModel.stats.observeAsState(SessionStats(0).toFullData())
 
                             val data = ScoreScreenData(
+                                activeSessionDate = DateInstance.fromString(session.startDateTime).asDateString(),
+                                prevSessionDate = prevSession,
+                                nextSessionDate = nextSession,
                                 throws = throws,
-                                stats = stats
+                                stats = stats,
                             )
 
                             ScoreScreen(
                                 data = data,
+                                onSessionSelect = {
+                                    scoreScreenViewModel.loadForDate(it)
+                                }
                             )
                         }
 

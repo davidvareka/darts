@@ -9,9 +9,11 @@ import ladislav.sevcuj.endlessdarts.App
 import ladislav.sevcuj.endlessdarts.DateInstance
 import ladislav.sevcuj.endlessdarts.asDateString
 import ladislav.sevcuj.endlessdarts.db.Session
+import ladislav.sevcuj.endlessdarts.db.SessionStats
 import ladislav.sevcuj.endlessdarts.db.User
 import ladislav.sevcuj.endlessdarts.ui.screens.score.ThrowHistoryRowData
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
+import java.util.*
 
 class ScoreScreenViewModel(
     app: App,
@@ -25,7 +27,17 @@ class ScoreScreenViewModel(
     private val sessionRepository = app.sessionRepository
     private val sessionStatsRepository = app.sessionStatsRepository
 
-    private var session: Session? = null
+    private val _selectedSession = MutableLiveData<Session>()
+    val selectedSession: LiveData<Session>
+        get() = _selectedSession
+
+    private val _prevSession = MutableLiveData<String>()
+    val prevSession: LiveData<String>
+        get() = _prevSession
+
+    private val _nextSession = MutableLiveData<String>()
+    val nextSession: LiveData<String>
+        get() = _nextSession
 
     private val _throws = MutableLiveData<List<ThrowHistoryRowData>>()
     val throws: LiveData<List<ThrowHistoryRowData>>
@@ -41,14 +53,55 @@ class ScoreScreenViewModel(
 
     fun load(sessionId: Long? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            session = if (sessionId == null) {
+            val session = if (sessionId == null) {
                 sessionRepository.getForDay(user.id, DateInstance.now().asDateString())
             } else {
                 sessionRepository.read(sessionId)
             }
+
             session?.let {
+                _selectedSession.postValue(it)
+
+                val prev = DateInstance.fromString(it.startDateTime)
+                prev.add(Calendar.DAY_OF_MONTH, -1)
+                _prevSession.postValue(prev.asDateString())
+
+                val next = DateInstance.fromString(it.startDateTime)
+                next.add(Calendar.DAY_OF_MONTH, 1)
+                _nextSession.postValue(next.asDateString())
+
                 loadThrows(it.id)
                 loadStats(it.id)
+            }
+        }
+    }
+
+    fun loadForDate(date: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val session = sessionRepository.getForDay(user.id, date)
+            session?.let {
+                load(it.id)
+            }
+
+            if (session == null) {
+                _selectedSession.postValue(
+                    Session(
+                        0,
+                        user.id,
+                        date,
+                    )
+                )
+
+                val prev = DateInstance.fromString(date)
+                prev.add(Calendar.DAY_OF_MONTH, -1)
+                _prevSession.postValue(prev.asDateString())
+
+                val next = DateInstance.fromString(date)
+                next.add(Calendar.DAY_OF_MONTH, 1)
+                _nextSession.postValue(next.asDateString())
+
+                _throws.postValue(listOf())
+                _stats.postValue(SessionStats(0).toFullData())
             }
         }
     }

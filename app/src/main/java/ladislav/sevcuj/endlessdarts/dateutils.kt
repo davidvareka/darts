@@ -34,4 +34,19 @@ object DateInstance {
 
         return null
     }
+
+    fun fromString(string: String): Calendar {
+        val cal = Calendar.getInstance()
+
+        val format = if (string.length == 10) {
+            "dd.MM.yyyy"
+        } else {
+            "dd.MM.yyyy HH:mm"
+        }
+
+        val sdf = SimpleDateFormat(format, Locale.getDefault())
+        cal.time = sdf.parse(string)
+
+        return cal
+    }
 }

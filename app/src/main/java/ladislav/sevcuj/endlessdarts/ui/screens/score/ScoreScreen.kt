@@ -15,6 +15,7 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.WidgetTitle
 @Composable
 fun ScoreScreen(
     data: ScoreScreenData,
+    onSessionSelect: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -28,9 +29,12 @@ fun ScoreScreen(
 
         SpacerHorizontal()
 
-        DayPicker(
-            onPrev = {},
-            onNext = {},
+        SessionPicker(
+            active = data.activeSessionDate,
+            prev = data.prevSessionDate,
+            next = data.nextSessionDate,
+            onSelect = onSessionSelect,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         SpacerHorizontal()
@@ -59,6 +63,9 @@ fun ScoreScreen(
 }
 
 data class ScoreScreenData(
+    val activeSessionDate: String,
+    val prevSessionDate: String,
+    val nextSessionDate: String,
     val throws: List<ThrowHistoryRowData>,
     val stats: List<StatsRowData>,
 )
