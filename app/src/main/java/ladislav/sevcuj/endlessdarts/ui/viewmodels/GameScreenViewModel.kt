@@ -7,11 +7,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import ladislav.sevcuj.endlessdarts.*
 import ladislav.sevcuj.endlessdarts.db.*
-import ladislav.sevcuj.endlessdarts.db.Target
 
 class GameScreenViewModel(
     private val user: User,
-    val target: Target,
     app: App,
     private val globalViewModel: GlobalViewModel,
 ) : ViewModel() {
@@ -69,6 +67,8 @@ class GameScreenViewModel(
     }
 
     fun onDart(field: DartBoard.Field) {
+        val gameTarget = globalViewModel.target.value!!
+
         viewModelScope.launch(Dispatchers.IO) {
             var currentThrow = _currentThrow.value!!
 
@@ -105,8 +105,8 @@ class GameScreenViewModel(
                 dartsCount = darts.size,
                 doubleCount = darts.count { item -> item.multiplicator == 2 },
                 tripleCount = darts.count { item -> item.multiplicator == 3 },
-                targetHits = darts.count { item -> item.number == target.number },
-                targetSuccess = darts.firstOrNull { item -> item.number != target.number } == null,
+                targetHits = darts.count { item -> item.number == gameTarget.number },
+                targetSuccess = darts.firstOrNull { item -> item.number != gameTarget.number } == null,
                 firstDartDatetime = currentThrow.firstDartDatetime ?: DateInstance.now()
                     .asDatetimeString(),
                 lastDartDatetime = DateInstance.now().asDatetimeString(),
@@ -144,6 +144,7 @@ class GameScreenViewModel(
     }
 
     private fun calculateStats(lastThrow: Throw) {
+        val gameTarget = globalViewModel.target.value!!
         val stats = _stats.value!!
         val statsAreStored = stats.sessionId > 0
         val darts = lastThrow.darts
@@ -157,8 +158,8 @@ class GameScreenViewModel(
 
         val max = darts.map { it.sum }.toTypedArray().sum()
         val average = allDarts.map { it.sum }.toTypedArray().average()
-        val isFullSuccess = darts.firstOrNull { d -> d.number != target.number } == null
-        val isFullMiss = darts.firstOrNull { d -> d.number == target.number } == null
+        val isFullSuccess = darts.firstOrNull { d -> d.number != gameTarget.number } == null
+        val isFullMiss = darts.firstOrNull { d -> d.number == gameTarget.number } == null
 
         var targetHits = 0
         var countDouble = 0
@@ -184,7 +185,7 @@ class GameScreenViewModel(
         var isOk = true
 
         darts.forEachIndexed { index, dart ->
-            if (dart.number == target.number) {
+            if (dart.number == gameTarget.number) {
                 targetHits++
 
                 if (index == 0) {
@@ -235,12 +236,16 @@ class GameScreenViewModel(
     }
 
     private fun buildNewThrow(
-    ) = Throw(
-        id = 0,
-        sessionId = session.id,
-        player = user.identifier,
-        target = target.label,
-    )
+    ): Throw {
+        val gameTarget = globalViewModel.target.value!!
+
+        return Throw(
+            id = 0,
+            sessionId = session.id,
+            player = user.identifier,
+            target = gameTarget.number,
+        )
+    }
 
     fun onActionButton(field: DartBoard.Field) {
         when (field.identifier) {
@@ -287,7 +292,6 @@ class GameScreenViewModel(
 class GameScreenViewModelFactory(
     private val app: App,
     private val user: User,
-    private val target: Target,
     private val globalViewModel: GlobalViewModel,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -295,7 +299,6 @@ class GameScreenViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return GameScreenViewModel(
                 user,
-                target,
                 app,
                 globalViewModel
             ) as T

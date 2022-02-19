@@ -30,7 +30,7 @@ object DartBoard {
     data class Field(
         val identifier: String,
         val label: String,
-        val value: Int? = identifier.toInt(),
+        val value: Int = identifier.toInt(),
         val maxMultiplication: Int = 3,
         val defaultMultiplication: Int = 1,
     )

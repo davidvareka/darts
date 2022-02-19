@@ -124,7 +124,7 @@ private fun ActionButtons(
         val buttonBackground = Color.White
 
         FieldButton(
-            field = DartBoard.Field("double", "double", null),
+            field = DartBoard.Field("double", "double", 0),
             onPress = onAction,
             modifier = Modifier.weight(1f),
             color = if (multiplicator == 2) buttonBackground else buttonColor,
@@ -132,7 +132,7 @@ private fun ActionButtons(
             borderColor = colorSuccess,
         )
         FieldButton(
-            field = DartBoard.Field("triple", "triple", null),
+            field = DartBoard.Field("triple", "triple", 0),
             onPress = onAction,
             modifier = Modifier.weight(1f),
             color = if (multiplicator == 3) buttonBackground else buttonColor,
@@ -143,7 +143,7 @@ private fun ActionButtons(
             field = DartBoard.Field(
                 "deleteLast",
                 "delete last",
-                null,
+                0,
             ),
             onPress = onAction,
             disabled = multiplicator > 1,
@@ -175,7 +175,8 @@ private fun FieldButton(
             ),
             enabled = !disabled,
             border = BorderStroke(1.dp, if (disabled) Color.LightGray else borderColor),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth(),
         ) {
             Text(
                 text = field.label,

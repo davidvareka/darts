@@ -4,12 +4,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ladislav.sevcuj.endlessdarts.DartBoard
 import ladislav.sevcuj.endlessdarts.Ui
-import ladislav.sevcuj.endlessdarts.db.Target
+import ladislav.sevcuj.endlessdarts.db.GameTarget
 import ladislav.sevcuj.endlessdarts.db.Throw
 import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerHorizontal
 import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerVertical
@@ -20,7 +20,10 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 fun GameScreen(
     data: GameScreenData,
     interactions: GameScreenInteractions,
+    onTargetChange: (GameTarget) -> Unit,
 ) {
+    var targetPickerIsVisible by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -32,8 +35,11 @@ fun GameScreen(
         Row(
             modifier = Modifier.fillMaxWidth(),
         ) {
-            GameTarget(
-                data.target,
+            GameTargetView(
+                data.gameTarget,
+                onChangeClick = {
+                    targetPickerIsVisible = true
+                },
                 modifier = Modifier.width(150.dp),
             )
 
@@ -65,10 +71,17 @@ fun GameScreen(
 
         SpacerHorizontal()
     }
+
+    if (targetPickerIsVisible) {
+        TargetPickerDialog(onPick = {
+            onTargetChange(it)
+            targetPickerIsVisible = false
+        })
+    }
 }
 
 data class GameScreenData(
-    val target: Target,
+    val gameTarget: GameTarget,
     val targetFields: List<DartBoard.Field>,
     val currentThrow: Throw,
     val lastThrow: Throw?,

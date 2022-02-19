@@ -10,6 +10,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Adjust
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import ladislav.sevcuj.endlessdarts.db.User
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreen
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreenData
 import ladislav.sevcuj.endlessdarts.ui.screens.game.GameScreenInteractions
+import ladislav.sevcuj.endlessdarts.ui.screens.home.HomeScreen
 import ladislav.sevcuj.endlessdarts.ui.screens.score.ScoreScreen
 import ladislav.sevcuj.endlessdarts.ui.screens.score.ScoreScreenData
 import ladislav.sevcuj.endlessdarts.ui.theme.EndlessDartsTheme
@@ -46,9 +48,15 @@ class MainActivity : ComponentActivity() {
 
         app = application as App
 
+        val user = User(
+            id = 1,
+            identifier = "User 1",
+            isTemporary = false,
+        )
+
         setContent {
             EndlessDartsTheme {
-                val startScreen = "score"
+                val startScreen = "home"
                 val navController = rememberNavController()
                 var route by remember {
                     mutableStateOf(
@@ -59,6 +67,12 @@ class MainActivity : ComponentActivity() {
                 navController.addOnDestinationChangedListener { _, destination, _ ->
                     route = destination.route!!
                 }
+
+                val globalViewModel: GlobalViewModel = viewModel(
+                    LocalContext.current as ComponentActivity
+                )
+
+                val target by globalViewModel.target.observeAsState()
 
                 Row(
                     modifier = Modifier.fillMaxSize()
@@ -74,29 +88,44 @@ class MainActivity : ComponentActivity() {
                         ) {
                             NavigationIcon(
                                 onClick = {
-                                    navController.navigate("game") {
+                                    navController.navigate("home") {
                                         restoreState = false
                                         launchSingleTop = true
                                     }
                                 },
-                                imageVector = Icons.Filled.Adjust,
-                                "Game",
-                                route == "game"
+                                imageVector = Icons.Filled.Home,
+                                "Home",
+                                route == "home"
                             )
 
-                            SpacerHorizontal()
+                            if (target != null) {
+                                SpacerHorizontal()
+                                NavigationIcon(
+                                    onClick = {
+                                        navController.navigate("game") {
+                                            restoreState = false
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    imageVector = Icons.Filled.Adjust,
+                                    "Game",
+                                    route == "game"
+                                )
 
-                            NavigationIcon(
-                                onClick = {
-                                    navController.navigate("score") {
-                                        restoreState = false
-                                        launchSingleTop = true
-                                    }
-                                },
-                                imageVector = Icons.Filled.Analytics,
-                                "Score",
-                                route == "score"
-                            )
+                                SpacerHorizontal()
+
+                                NavigationIcon(
+                                    onClick = {
+                                        navController.navigate("score") {
+                                            restoreState = false
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    imageVector = Icons.Filled.Analytics,
+                                    "Score",
+                                    route == "score"
+                                )
+                            }
                         }
                     }
 
@@ -105,32 +134,45 @@ class MainActivity : ComponentActivity() {
                         startDestination = startScreen,
                         modifier = Modifier.weight(1f),
                     ) {
+                        composable("home") {
+                            val homeScreenViewModel: HomeScreeViewModel by viewModels {
+                                HomeScreenViewModelFactory()
+                            }
+
+                            val selectedTarget by homeScreenViewModel.target.observeAsState()
+
+                            globalViewModel.onTargetChange.observe(
+                                LocalContext.current as ComponentActivity
+                            ) {
+                                homeScreenViewModel.onTargetSelect(it)
+                            }
+
+                            HomeScreen(
+                                user = user,
+                                target = selectedTarget ?: target ?: TargetProvider.getDefault(),
+                                onTargetSelect = homeScreenViewModel::onTargetSelect,
+                                onStart = {
+                                    globalViewModel.changeTarget(homeScreenViewModel.getTarget())
+                                    navController.navigate("game") {
+                                        popUpTo("game")
+                                        restoreState = false
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        }
+
                         composable("login") {
 
                         }
 
-                        composable("game") {
-                            val globalViewModel: GlobalViewModel = viewModel(
-                                LocalContext.current as ComponentActivity
-                            )
-
-                            val target = ladislav.sevcuj.endlessdarts.db.Target(
-                                id = 1,
-                                label = "20",
-                                number = 20,
-                            )
-
-                            val user = User(
-                                id = 1,
-                                identifier = "User 1",
-                                isTemporary = false,
-                            )
-
+                        composable(
+                            "game",
+                        ) {
                             val gameScreenViewModel: GameScreenViewModel by viewModels {
                                 GameScreenViewModelFactory(
                                     app = app,
                                     user = user,
-                                    target = target,
                                     globalViewModel = globalViewModel
                                 )
                             }
@@ -147,30 +189,27 @@ class MainActivity : ComponentActivity() {
                                     GameScreenData(
                                         currentThrow = currentThrow!!,
                                         lastThrow = lastThrow,
-                                        target = gameScreenViewModel.target,
-                                        targetFields = gameScreenViewModel.target.getPreferredFields(),
+                                        gameTarget = target!!,
+                                        targetFields = target!!.prefferedFields,
                                         stats = stats!!.toSimpleData(),
                                         multiplicator = multiplicator,
                                     ),
                                     GameScreenInteractions(
                                         onDart = gameScreenViewModel::onDart,
                                         onActionButton = gameScreenViewModel::onActionButton
-                                    )
+                                    ),
+                                    onTargetChange = {
+                                        globalViewModel.changeTarget(if (it.id == TargetProvider.randomId) {
+                                            TargetProvider.random().copy(label = it.number.toString())
+                                        } else {
+                                            it
+                                        })
+                                    }
                                 )
                             }
                         }
 
                         composable("score") {
-                            val globalViewModel: GlobalViewModel = viewModel(
-                                LocalContext.current as ComponentActivity
-                            )
-
-                            val user = User(
-                                id = 1,
-                                identifier = "User 1",
-                                isTemporary = false,
-                            )
-
                             val scoreScreenViewModel: ScoreScreenViewModel by viewModels {
                                 ScoreScreenViewModelFactory(app, user)
                             }
@@ -200,7 +239,8 @@ class MainActivity : ComponentActivity() {
                             val stats by scoreScreenViewModel.stats.observeAsState(SessionStats(0).toFullData())
 
                             val data = ScoreScreenData(
-                                activeSessionDate = DateInstance.fromString(session.startDateTime).asDateString(),
+                                activeSessionDate = DateInstance.fromString(session.startDateTime)
+                                    .asDateString(),
                                 prevSessionDate = prevSession,
                                 nextSessionDate = nextSession,
                                 throws = throws,

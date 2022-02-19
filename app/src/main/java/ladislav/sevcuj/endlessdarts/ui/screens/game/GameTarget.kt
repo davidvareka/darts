@@ -17,7 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ladislav.sevcuj.endlessdarts.Ui
-import ladislav.sevcuj.endlessdarts.db.Target
+import ladislav.sevcuj.endlessdarts.db.GameTarget
 import ladislav.sevcuj.endlessdarts.ui.theme.EndlessDartsTheme
 import ladislav.sevcuj.endlessdarts.ui.theme.colorWarningBackground
 import ladislav.sevcuj.endlessdarts.ui.theme.colorWarningBorder
@@ -26,8 +26,9 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerHorizontal
 import ladislav.sevcuj.endlessdarts.ui.widgets.WidgetTitle
 
 @Composable
-fun GameTarget(
-    target: Target,
+fun GameTargetView(
+    gameTarget: GameTarget,
+    onChangeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -38,12 +39,12 @@ fun GameTarget(
 
         SpacerHorizontal()
 
-        Target(identifier = target.label)
+        Target(identifier = gameTarget.number.toString())
 
         SpacerHorizontal()
 
         Button(
-            onClick = { /*TODO*/ },
+            onClick = onChangeClick,
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = MaterialTheme.colors.secondary,
             )
@@ -83,6 +84,6 @@ private fun Target(identifier: String) {
 @Composable
 private fun GameTargetPreview() {
     EndlessDartsTheme {
-        GameTarget(Target(1, "20", 20))
+        GameTargetView(GameTarget(1, "20", 20, listOf()), onChangeClick = {})
     }
 }

@@ -3,6 +3,7 @@ package ladislav.sevcuj.endlessdarts.db
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import ladislav.sevcuj.endlessdarts.DartBoard
+import ladislav.sevcuj.endlessdarts.TargetProvider
 import ladislav.sevcuj.endlessdarts.toDecimalString
 import ladislav.sevcuj.endlessdarts.ui.screens.score.ThrowHistoryRowData
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
@@ -133,61 +134,18 @@ interface SessionDao {
     fun delete(entity: Session)
 }
 
-data class Target(
+data class GameTarget(
     val id: Long,
     val label: String,
     val number: Int,
+    val prefferedFields: List<DartBoard.Field>,
 ) {
-    fun getPreferredFields(): List<DartBoard.Field> {
-        return listOf(
-            DartBoard.Field(
-                "20",
-                "20",
-                maxMultiplication = 1,
-            ),
-            DartBoard.Field(
-                "20",
-                "D20",
-                value = 20,
-                maxMultiplication = 1,
-                defaultMultiplication = 2,
-            ),
-            DartBoard.Field(
-                "20",
-                "T20",
-                value = 20,
-                maxMultiplication = 1,
-                defaultMultiplication = 3,
-            ),
-            DartBoard.Field(
-                "1",
-                "D1",
-                value = 1,
-                maxMultiplication = 1,
-                defaultMultiplication = 2,
-            ),
-            DartBoard.Field(
-                "1",
-                "T1",
-                value = 1,
-                maxMultiplication = 1,
-                defaultMultiplication = 3,
-            ),
-            DartBoard.Field(
-                "5",
-                "D5",
-                value = 5,
-                maxMultiplication = 1,
-                defaultMultiplication = 2,
-            ),
-            DartBoard.Field(
-                "5",
-                "T5",
-                value = 5,
-                maxMultiplication = 1,
-                defaultMultiplication = 3,
-            ),
-        )
+    fun label(): String {
+        return if (id == TargetProvider.randomId) {
+            "random"
+        } else {
+            label
+        }
     }
 }
 
@@ -203,7 +161,7 @@ data class Throw(
     val dartsCount: Int = 0,
     val doubleCount: Int = 0,
     val tripleCount: Int = 0,
-    val target: String,
+    val target: Int,
     val targetHits: Int = 0,
     val targetSuccess: Boolean = false,
     val firstDartDatetime: String? = null,
@@ -215,16 +173,12 @@ data class Throw(
     fun toHistoryRowData(
         dartRepository: DartRepository,
     ): ThrowHistoryRowData {
-        val throwTarget = Target(
-            id = 1,
-            label = "20",
-            number = 20,
-        )
+        val throwTarget = TargetProvider.get(target)
         val darts = dartRepository.readForThrow(id)
 
         return ThrowHistoryRowData(
             throwId = id,
-            target = target,
+            target = target.toString(),
             dart1 = ThrowHistoryRowData.Dart(
                 value = darts[0].sum.toString(),
                 isSuccess = darts[0].number == throwTarget.number

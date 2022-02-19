@@ -222,7 +222,7 @@ private fun GameDashboardPreview() {
                 id = 1,
                 sessionId = 1,
                 player = "Preview",
-                target = "20",
+                target = 20,
             ),
             null
         )
