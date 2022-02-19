@@ -7,8 +7,10 @@ import androidx.lifecycle.ViewModelProvider
 import ladislav.sevcuj.endlessdarts.TargetProvider
 import ladislav.sevcuj.endlessdarts.db.GameTarget
 
-class HomeScreeViewModel : ViewModel() {
-    private val _target = MutableLiveData(TargetProvider.getDefault())
+class HomeScreeViewModel(
+    target: GameTarget,
+) : ViewModel() {
+    private val _target = MutableLiveData(target)
     val target: LiveData<GameTarget>
         get() = _target
 
@@ -27,11 +29,13 @@ class HomeScreeViewModel : ViewModel() {
     }
 }
 
-class HomeScreenViewModelFactory : ViewModelProvider.Factory {
+class HomeScreenViewModelFactory(
+    private val target: GameTarget,
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(HomeScreeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return HomeScreeViewModel() as T
+            return HomeScreeViewModel(target) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -35,8 +35,8 @@ class ScoreScreenViewModel(
     val prevSession: LiveData<String>
         get() = _prevSession
 
-    private val _nextSession = MutableLiveData<String>()
-    val nextSession: LiveData<String>
+    private val _nextSession = MutableLiveData<String?>()
+    val nextSession: LiveData<String?>
         get() = _nextSession
 
     private val _throws = MutableLiveData<List<ThrowHistoryRowData>>()
@@ -62,13 +62,20 @@ class ScoreScreenViewModel(
             session?.let {
                 _selectedSession.postValue(it)
 
+                val now = DateInstance.now()
+
                 val prev = DateInstance.fromString(it.startDateTime)
                 prev.add(Calendar.DAY_OF_MONTH, -1)
                 _prevSession.postValue(prev.asDateString())
 
                 val next = DateInstance.fromString(it.startDateTime)
                 next.add(Calendar.DAY_OF_MONTH, 1)
-                _nextSession.postValue(next.asDateString())
+
+                if (next > now) {
+                    _nextSession.postValue("")
+                } else {
+                    _nextSession.postValue(next.asDateString())
+                }
 
                 loadThrows(it.id)
                 loadStats(it.id)

@@ -1,6 +1,7 @@
 package ladislav.sevcuj.endlessdarts.db
 
 import androidx.room.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import ladislav.sevcuj.endlessdarts.DartBoard
 import ladislav.sevcuj.endlessdarts.TargetProvider
@@ -197,6 +198,7 @@ data class Throw(
     ): ThrowHistoryRowData {
         val throwTarget = TargetProvider.get(target)
         val darts = dartRepository.readForThrow(id)
+        delay(100)
 
         return ThrowHistoryRowData(
             throwId = id,

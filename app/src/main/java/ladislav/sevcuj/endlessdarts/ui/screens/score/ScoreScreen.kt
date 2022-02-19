@@ -32,7 +32,7 @@ fun ScoreScreen(
         SessionPicker(
             active = data.activeSessionDate,
             prev = data.prevSessionDate,
-            next = data.nextSessionDate,
+            next = data.nextSessionDate ?: "",
             onSelect = onSessionSelect,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -65,7 +65,7 @@ fun ScoreScreen(
 data class ScoreScreenData(
     val activeSessionDate: String,
     val prevSessionDate: String,
-    val nextSessionDate: String,
+    val nextSessionDate: String?,
     val throws: List<ThrowHistoryRowData>,
     val stats: List<StatsRowData>,
 )

@@ -51,6 +51,7 @@ import java.util.*
 @ExperimentalFoundationApi
 class MainActivity : ComponentActivity() {
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user")
+    private val dataStoreTarget = intPreferencesKey("target")
     private val dataStoreUserId = intPreferencesKey("user_id")
     private val dataStoreUserName = stringPreferencesKey("user_name")
     private val dataStoreUserTemporary = booleanPreferencesKey("user_temporary")
@@ -72,6 +73,8 @@ class MainActivity : ComponentActivity() {
             isTemporary = appStateData[dataStoreUserTemporary] ?: true,
         )
 
+        val defaultTarget = TargetProvider.get(appStateData[dataStoreTarget] ?: TargetProvider.getDefault().number)
+
         setContent {
             EndlessDartsTheme {
                 val startScreen = "home"
@@ -88,20 +91,30 @@ class MainActivity : ComponentActivity() {
 
                 val globalViewModel: GlobalViewModel = viewModel(
                     LocalContext.current as ComponentActivity,
-                    factory = GlobalViewModelFactory(loggedUser, app)
+                    factory = GlobalViewModelFactory(loggedUser, defaultTarget, app)
                 )
 
                 globalViewModel.setUser(loggedUser)
 
-                val target by globalViewModel.target.observeAsState()
+                val target by globalViewModel.target.observeAsState(defaultTarget)
                 val user by globalViewModel.user.observeAsState(loggedUser)
 
                 globalViewModel.onUserChange.observe(LocalContext.current as ComponentActivity) { newUser ->
                     lifecycleScope.launch(Dispatchers.IO) {
-                        dataStore.edit { settings ->
-                            settings[dataStoreUserId] = newUser.id.toInt()
-                            settings[dataStoreUserName] = newUser.identifier
-                            settings[dataStoreUserTemporary] = newUser.isTemporary
+                        dataStore.edit { data ->
+                            data[dataStoreUserId] = newUser.id.toInt()
+                            data[dataStoreUserName] = newUser.identifier
+                            data[dataStoreUserTemporary] = newUser.isTemporary
+                        }
+                    }
+                }
+
+                globalViewModel.onTargetChange.observe(
+                    LocalContext.current as ComponentActivity
+                ) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        dataStore.edit { data ->
+                            data[dataStoreTarget] = it.number
                         }
                     }
                 }
@@ -130,34 +143,32 @@ class MainActivity : ComponentActivity() {
                                 route == "home"
                             )
 
-                            if (target != null) {
-                                SpacerHorizontal()
-                                NavigationIcon(
-                                    onClick = {
-                                        navController.navigate("game") {
-                                            restoreState = false
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                    imageVector = Icons.Filled.Adjust,
-                                    "Game",
-                                    route == "game"
-                                )
+                            SpacerHorizontal()
+                            NavigationIcon(
+                                onClick = {
+                                    navController.navigate("game") {
+                                        restoreState = false
+                                        launchSingleTop = true
+                                    }
+                                },
+                                imageVector = Icons.Filled.Adjust,
+                                "Game",
+                                route == "game"
+                            )
 
-                                SpacerHorizontal()
+                            SpacerHorizontal()
 
-                                NavigationIcon(
-                                    onClick = {
-                                        navController.navigate("score") {
-                                            restoreState = false
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                    imageVector = Icons.Filled.Analytics,
-                                    "Score",
-                                    route == "score"
-                                )
-                            }
+                            NavigationIcon(
+                                onClick = {
+                                    navController.navigate("score") {
+                                        restoreState = false
+                                        launchSingleTop = true
+                                    }
+                                },
+                                imageVector = Icons.Filled.Analytics,
+                                "Score",
+                                route == "score"
+                            )
                         }
                     }
 
@@ -168,10 +179,10 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("home") {
                             val homeScreenViewModel: HomeScreeViewModel by viewModels {
-                                HomeScreenViewModelFactory()
+                                HomeScreenViewModelFactory(target)
                             }
 
-                            val selectedTarget by homeScreenViewModel.target.observeAsState()
+                            val selectedTarget by homeScreenViewModel.target.observeAsState(target)
 
                             globalViewModel.onTargetChange.observe(
                                 LocalContext.current as ComponentActivity
@@ -188,7 +199,7 @@ class MainActivity : ComponentActivity() {
                                         true
                                     ))
                                 },
-                                target = selectedTarget ?: target ?: TargetProvider.getDefault(),
+                                target = selectedTarget,
                                 onTargetSelect = homeScreenViewModel::onTargetSelect,
                                 onStart = {
                                     globalViewModel.changeTarget(homeScreenViewModel.getTarget()) {
@@ -236,8 +247,8 @@ class MainActivity : ComponentActivity() {
                                     GameScreenData(
                                         currentThrow = currentThrow!!,
                                         lastThrow = lastThrow,
-                                        gameTarget = target!!,
-                                        targetFields = target!!.prefferedFields,
+                                        gameTarget = target,
+                                        targetFields = target.prefferedFields,
                                         stats = stats!!.toSimpleData(),
                                         multiplicator = multiplicator,
                                     ),
@@ -284,9 +295,6 @@ class MainActivity : ComponentActivity() {
                             val prev = DateInstance.now()
                             prev.add(Calendar.DAY_OF_MONTH, -1)
 
-                            val next = DateInstance.now()
-                            next.add(Calendar.DAY_OF_MONTH, 1)
-
                             val session by scoreScreenViewModel.selectedSession.observeAsState(
                                 initial = Session(
                                     0,
@@ -295,7 +303,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
                             val prevSession by scoreScreenViewModel.prevSession.observeAsState(prev.asDateString())
-                            val nextSession by scoreScreenViewModel.nextSession.observeAsState(next.asDateString())
+                            val nextSession by scoreScreenViewModel.nextSession.observeAsState()
                             val throws by scoreScreenViewModel.throws.observeAsState(listOf())
                             val stats by scoreScreenViewModel.stats.observeAsState(SessionStats(0).toFullData())
 

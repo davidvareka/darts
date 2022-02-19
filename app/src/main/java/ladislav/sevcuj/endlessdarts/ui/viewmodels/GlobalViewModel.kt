@@ -10,6 +10,7 @@ import ladislav.sevcuj.endlessdarts.db.User
 
 class GlobalViewModel(
     user: User,
+    target: GameTarget,
     private val app: App
 ) : ViewModel() {
 
@@ -21,7 +22,7 @@ class GlobalViewModel(
     val user: LiveData<User>
         get() = _user
 
-    private val _target = MutableLiveData<GameTarget>()
+    private val _target = MutableLiveData(target)
     val target: LiveData<GameTarget>
         get() = _target
 
@@ -69,6 +70,7 @@ class GlobalViewModel(
 
 class GlobalViewModelFactory(
     private val user: User,
+    private val target: GameTarget,
     private val app: App
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -76,6 +78,7 @@ class GlobalViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return GlobalViewModel(
                 user,
+                target,
                 app
             ) as T
         }

@@ -43,23 +43,31 @@ fun SessionPicker(
                 )
                 SpacerVertical(Ui.padding * 2)
 
-            ActiveSessionLabel(
+            SessionLabel(
                 date = active,
                 modifier = itemModifier,
             )
 
             SpacerVertical(Ui.padding * 2)
-            ClickableSessionLabel(
-                date = next,
-                onClick = onSelect,
-                modifier = itemModifier,
-            )
+
+            if (next.isEmpty()) {
+                SessionLabel(
+                    date = "",
+                    modifier = itemModifier,
+                )
+            } else {
+                ClickableSessionLabel(
+                    date = next,
+                    onClick = onSelect,
+                    modifier = itemModifier,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ActiveSessionLabel(
+private fun SessionLabel(
     date: String,
     modifier: Modifier = Modifier
 ) {
