@@ -5,15 +5,11 @@ import kotlinx.coroutines.flow.Flow
 class UserRepository(
     private val dao: UserDao,
 ) {
-    fun insert(entity: User): Long {
+    suspend fun insert(entity: User): Long {
         return dao.insert(entity)
     }
 
-    fun read(id: Long): User {
-        return dao.get(id)
-    }
-
-    fun delete(entity: User) {
+    suspend fun delete(entity: User) {
         dao.delete(entity)
     }
 }
@@ -21,96 +17,83 @@ class UserRepository(
 class SessionRepository(
     private val dao: SessionDao,
 ) {
-    fun insert(entity: Session): Long {
+    suspend fun insert(entity: Session): Long {
         return dao.insert(entity)
     }
 
-    fun read(id: Long): Session {
+    suspend fun read(id: Long): Session {
         return dao.get(id)
     }
 
-    fun getLast(userId: Long): Session? {
-        return dao.getLast(userId)
+    suspend fun getForUser(userId: Long): List<Session> {
+        return dao.getForUser(userId)
     }
 
-    fun getForDay(userId: Long, date: String): Session? {
-        val all = getLast(userId)
+    suspend fun getForDay(userId: Long, date: String): Session? {
         return dao.getForDate(userId, date)
-    }
-
-    fun update(entity: Session) {
-        dao.update(entity)
     }
 }
 
 class SessionStatsRepository(
     private val dao: SessionStatsDao,
 ) {
-    fun insert(entity: SessionStats) {
+    suspend fun insert(entity: SessionStats) {
         dao.insert(entity)
     }
 
-    fun read(id: Long): SessionStats {
+    suspend fun read(id: Long): SessionStats {
         return dao.get(id)
     }
 
-    fun readFlow(id: Long): Flow<SessionStats> {
+    fun readFlow(id: Long): Flow<SessionStats?> {
         return dao.getFlow(id)
     }
 
-    fun update(entity: SessionStats) {
+    suspend fun update(entity: SessionStats) {
         dao.update(entity)
+    }
+
+    suspend fun deleteForSession(id: Long) {
+        dao.deleteForSession(id)
     }
 }
 
 class ThrowRepository(
     private val dao: ThrowDao,
 ) {
-    fun insert(entity: Throw): Long {
+    suspend fun insert(entity: Throw): Long {
         return dao.insert(entity)
     }
 
-    fun read(id: Long): Throw {
-        return dao.get(id)
-    }
-
-    fun readAll(): List<Throw> {
-        return dao.readAll()
-    }
-
-    fun update(entity: Throw) {
-        dao.update(entity)
-    }
-
-    fun delete(entity: Throw) {
+    suspend fun delete(entity: Throw) {
         dao.delete(entity)
     }
 
-    fun readForSession(id: Long): Flow<List<Throw>> {
+    fun readForSession(id: Long): Flow<List<Throw>?> {
         return dao.readForSession(id)
+    }
+
+    suspend fun deleteForSession(id: Long) {
+        dao.deleteForSession(id)
     }
 }
 
 class DartRepository(
     private val dao: DartDao,
 ) {
-    fun insert(entity: Dart) {
+    suspend fun insert(entity: Dart) {
         dao.insert(entity)
     }
 
-    fun read(id: Long): Dart {
-        return dao.get(id)
-    }
-
-    fun delete(entity: Dart) {
+    suspend fun delete(entity: Dart) {
         dao.delete(entity)
     }
 
-    fun update(entity: Dart) {
-        dao.update(entity)
+    suspend fun readForThrow(throwId: Long): List<Dart> {
+        return dao.readForThrow(throwId)
     }
 
-    fun readForThrow(throwId: Long): List<Dart> {
-        return dao.readForThrow(throwId)
+    suspend fun deleteForSession(id: Long) {
+        dao.deleteForSession(id)
     }
 }

@@ -27,6 +27,7 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerVertical
 @Composable
 fun HomeScreen(
     user: User,
+    onNewUser: () -> Unit,
     target: GameTarget,
     onTargetSelect: (GameTarget) -> Unit,
     onStart: () -> Unit,
@@ -74,7 +75,10 @@ fun HomeScreen(
                         fontSize = 14.sp,
                         color = Color.Blue,
                         textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.width(150.dp),
+                        modifier = Modifier
+                            .clickable {
+                                onNewUser()
+                            },
                     )
                 }
                 SpacerHorizontal()
@@ -177,6 +181,7 @@ fun HomeScreenPreview() {
                     identifier = "User 1",
                     isTemporary = false,
                 ),
+                {},
                 TargetProvider.getDefault(),
                 onTargetSelect = {},
                 onStart = {},

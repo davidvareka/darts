@@ -9,7 +9,7 @@ import ladislav.sevcuj.endlessdarts.*
 import ladislav.sevcuj.endlessdarts.db.*
 
 class GameScreenViewModel(
-    private val user: User,
+    private var user: User,
     app: App,
     private val globalViewModel: GlobalViewModel,
 ) : ViewModel() {
@@ -39,6 +39,10 @@ class GameScreenViewModel(
         get() = _stats
 
     init {
+        load()
+    }
+
+    private fun load() {
         viewModelScope.launch(Dispatchers.IO) {
             val existingSession = sessionRepository.getForDay(
                 user.id,
@@ -90,8 +94,9 @@ class GameScreenViewModel(
                 id = 0,
                 order = darts.size + 1,
                 throwId = currentThrow.id,
+                sessionId = session.id,
                 multiplicator = _multiplicator.value!!,
-                number = field.value!!,
+                number = field.value,
                 sum = multi * field.value,
             )
 
@@ -226,13 +231,15 @@ class GameScreenViewModel(
             failCount = if (isFail) stats.failCount + 1 else stats.failCount,
         )
 
-        if (statsAreStored) {
-            sessionStatsRepository.update(newStats)
-        } else {
-            sessionStatsRepository.insert(newStats)
-        }
-
         _stats.postValue(newStats)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            if (statsAreStored) {
+                sessionStatsRepository.update(newStats)
+            } else {
+                sessionStatsRepository.insert(newStats)
+            }
+        }
     }
 
     private fun buildNewThrow(
@@ -244,6 +251,7 @@ class GameScreenViewModel(
             sessionId = session.id,
             player = user.identifier,
             target = gameTarget.number,
+            isLogged = user.isTemporary,
         )
     }
 
@@ -285,6 +293,13 @@ class GameScreenViewModel(
                     }
                 }
             }
+        }
+    }
+
+    fun onUser(newUser: User) {
+        if (user.id != newUser.id) {
+            user = newUser
+            load()
         }
     }
 }

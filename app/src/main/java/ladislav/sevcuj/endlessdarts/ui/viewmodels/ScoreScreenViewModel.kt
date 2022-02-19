@@ -17,7 +17,7 @@ import java.util.*
 
 class ScoreScreenViewModel(
     app: App,
-    private val user: User,
+    private var user: User,
 ) : ViewModel() {
     private var throwsJob: Job? = null
     private var statsJob: Job? = null
@@ -110,7 +110,9 @@ class ScoreScreenViewModel(
         throwsJob?.cancel()
         throwsJob = viewModelScope.launch(Dispatchers.IO) {
             throwRepository.readForSession(sessionId).collect { throws ->
-                _throws.postValue(throws.map { item -> item.toHistoryRowData(dartRepository) })
+                throws?.let {
+                    _throws.postValue(it.map { item -> item.toHistoryRowData(dartRepository) })
+                }
             }
         }
     }
@@ -119,11 +121,19 @@ class ScoreScreenViewModel(
         statsJob?.cancel()
         statsJob = viewModelScope.launch(Dispatchers.IO) {
             sessionStatsRepository.readFlow(sessionId).collect { stats ->
-                _stats.postValue(stats.toFullData())
+                stats?.let {
+                    _stats.postValue(it.toFullData())
+                }
             }
         }
     }
 
+    fun onUser(newUser: User) {
+        if (user.id != newUser.id) {
+            user = newUser
+            load()
+        }
+    }
 }
 
 class ScoreScreenViewModelFactory(

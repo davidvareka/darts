@@ -1,5 +1,6 @@
 package ladislav.sevcuj.endlessdarts
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,10 +21,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import ladislav.sevcuj.endlessdarts.db.Session
 import ladislav.sevcuj.endlessdarts.db.SessionStats
 import ladislav.sevcuj.endlessdarts.db.User
@@ -41,6 +50,11 @@ import java.util.*
 
 @ExperimentalFoundationApi
 class MainActivity : ComponentActivity() {
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user")
+    private val dataStoreUserId = intPreferencesKey("user_id")
+    private val dataStoreUserName = stringPreferencesKey("user_name")
+    private val dataStoreUserTemporary = booleanPreferencesKey("user_temporary")
+
     private lateinit var app: App
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,10 +62,14 @@ class MainActivity : ComponentActivity() {
 
         app = application as App
 
-        val user = User(
-            id = 1,
-            identifier = "User 1",
-            isTemporary = false,
+        val appStateData = runBlocking {
+            dataStore.data.first()
+        }
+
+        val loggedUser = User(
+            id = appStateData[dataStoreUserId]?.toLong() ?: 0,
+            identifier = appStateData[dataStoreUserName]?.toString() ?: getRandomUserIdentifier(),
+            isTemporary = appStateData[dataStoreUserTemporary] ?: true,
         )
 
         setContent {
@@ -69,10 +87,24 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val globalViewModel: GlobalViewModel = viewModel(
-                    LocalContext.current as ComponentActivity
+                    LocalContext.current as ComponentActivity,
+                    factory = GlobalViewModelFactory(loggedUser, app)
                 )
 
+                globalViewModel.setUser(loggedUser)
+
                 val target by globalViewModel.target.observeAsState()
+                val user by globalViewModel.user.observeAsState(loggedUser)
+
+                globalViewModel.onUserChange.observe(LocalContext.current as ComponentActivity) { newUser ->
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        dataStore.edit { settings ->
+                            settings[dataStoreUserId] = newUser.id.toInt()
+                            settings[dataStoreUserName] = newUser.identifier
+                            settings[dataStoreUserTemporary] = newUser.isTemporary
+                        }
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxSize()
@@ -149,15 +181,24 @@ class MainActivity : ComponentActivity() {
 
                             HomeScreen(
                                 user = user,
+                                onNewUser = {
+                                    globalViewModel.setUser(User(
+                                        id = 0,
+                                        identifier = getRandomUserIdentifier(),
+                                        true
+                                    ))
+                                },
                                 target = selectedTarget ?: target ?: TargetProvider.getDefault(),
                                 onTargetSelect = homeScreenViewModel::onTargetSelect,
                                 onStart = {
-                                    globalViewModel.changeTarget(homeScreenViewModel.getTarget())
-                                    navController.navigate("game") {
-                                        popUpTo("game")
-                                        restoreState = false
-                                        launchSingleTop = true
+                                    globalViewModel.changeTarget(homeScreenViewModel.getTarget()) {
+                                        navController.navigate("game") {
+                                            popUpTo("game")
+                                            restoreState = false
+                                            launchSingleTop = true
+                                        }
                                     }
+
                                 }
                             )
                         }
@@ -175,6 +216,12 @@ class MainActivity : ComponentActivity() {
                                     user = user,
                                     globalViewModel = globalViewModel
                                 )
+                            }
+
+                            globalViewModel.user.observe(
+                                LocalContext.current as ComponentActivity
+                            ) {
+                                gameScreenViewModel.onUser(it)
                             }
 
                             val currentThrow by gameScreenViewModel.currentThrow.observeAsState()
@@ -199,11 +246,19 @@ class MainActivity : ComponentActivity() {
                                         onActionButton = gameScreenViewModel::onActionButton
                                     ),
                                     onTargetChange = {
-                                        globalViewModel.changeTarget(if (it.id == TargetProvider.randomId) {
-                                            TargetProvider.random().copy(label = it.number.toString())
-                                        } else {
-                                            it
-                                        })
+                                        globalViewModel.changeTarget(
+                                            if (it.id == TargetProvider.randomId) {
+                                                TargetProvider.random().copy(label = it.number.toString())
+                                            } else {
+                                                it
+                                            }
+                                        ) {
+                                            navController.navigate("game") {
+                                                popUpTo("game")
+                                                restoreState = false
+                                                launchSingleTop = true
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -216,6 +271,12 @@ class MainActivity : ComponentActivity() {
 
                             globalViewModel.onSessionCreated.observe(LocalContext.current as ComponentActivity) {
                                 scoreScreenViewModel.load(it)
+                            }
+
+                            globalViewModel.user.observe(
+                                LocalContext.current as ComponentActivity
+                            ) {
+                                scoreScreenViewModel.onUser(it)
                             }
 
                             val now = DateInstance.now()

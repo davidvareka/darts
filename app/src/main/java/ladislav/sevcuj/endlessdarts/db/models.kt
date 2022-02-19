@@ -18,13 +18,13 @@ data class User(
 @Dao
 interface UserDao {
     @Query("SELECT * FROM user WHERE id = :id")
-    fun get(id: Long): User
+    suspend fun get(id: Long): User?
 
     @Insert
-    fun insert(entity: User): Long
+    suspend fun insert(entity: User): Long
 
     @Delete
-    fun delete(entity: User)
+    suspend fun delete(entity: User)
 }
 
 @Entity
@@ -64,8 +64,14 @@ data class SessionStats(
                 "Target full success (rate)",
                 "$fullSuccessCount (${fullSuccessPercent.toDecimalString()}%)"
             ),
-            StatsRowData("Target full miss (rate)", "$fullMissCount (${fullMissPercent.toDecimalString()}%)"),
-            StatsRowData("Target hits (rate)",  "$targetHitsCount (${targetHitsPercent.toDecimalString()}%)"),
+            StatsRowData(
+                "Target full miss (rate)",
+                "$fullMissCount (${fullMissPercent.toDecimalString()}%)"
+            ),
+            StatsRowData(
+                "Target hits (rate)",
+                "$targetHitsCount (${targetHitsPercent.toDecimalString()}%)"
+            ),
             StatsRowData("Throw average", (average / 100).toString()),
             StatsRowData("Throw max", max.toString()),
             StatsRowData("140+", above140Count.toString()),
@@ -81,11 +87,21 @@ data class SessionStats(
         val potentialCount = fullSuccessCount + failCount
         val potentialPercent = getPercent(potentialCount, throwsCount)
 
-        simpleList.add(StatsRowData("Double", doubleCount.toString()),)
-        simpleList.add(StatsRowData("Triple", tripleCount.toString()),)
-        simpleList.add(StatsRowData("Start OK",  "$targetHitsCount (${startOkPercent.toDecimalString()}%)"))
-        simpleList.add(StatsRowData("Fail",  "$failCount (${failPercent.toDecimalString()}%)"))
-        simpleList.add(StatsRowData("Potential",  "$potentialCount (${potentialPercent.toDecimalString()}%)"))
+        simpleList.add(StatsRowData("Double", doubleCount.toString()))
+        simpleList.add(StatsRowData("Triple", tripleCount.toString()))
+        simpleList.add(
+            StatsRowData(
+                "Start OK",
+                "$targetHitsCount (${startOkPercent.toDecimalString()}%)"
+            )
+        )
+        simpleList.add(StatsRowData("Fail", "$failCount (${failPercent.toDecimalString()}%)"))
+        simpleList.add(
+            StatsRowData(
+                "Potential",
+                "$potentialCount (${potentialPercent.toDecimalString()}%)"
+            )
+        )
 
         return simpleList.toList()
     }
@@ -98,40 +114,46 @@ data class SessionStats(
 @Dao
 interface SessionStatsDao {
     @Query("SELECT * FROM session_stats WHERE sessionId = :id")
-    fun get(id: Long): SessionStats
+    suspend fun get(id: Long): SessionStats
 
     @Query("SELECT * FROM session_stats WHERE sessionId = :id")
-    fun getFlow(id: Long): Flow<SessionStats>
+    fun getFlow(id: Long): Flow<SessionStats?>
 
     @Insert
-    fun insert(entity: SessionStats)
+    suspend fun insert(entity: SessionStats)
 
     @Update
-    fun update(entity: SessionStats)
+    suspend fun update(entity: SessionStats)
 
     @Delete
-    fun delete(entity: SessionStats)
+    suspend fun delete(entity: SessionStats)
+
+    @Query("DELETE FROM session_stats WHERE sessionId = :id")
+    suspend fun deleteForSession(id: Long)
 }
 
 @Dao
 interface SessionDao {
     @Query("SELECT * FROM session WHERE id = :id")
-    fun get(id: Long): Session
+    suspend fun get(id: Long): Session
+
+    @Query("SELECT * FROM session WHERE userId = :userId")
+    suspend fun getForUser(userId: Long): List<Session>
 
     @Query("SELECT * FROM session WHERE userId = :userId ORDER BY id DESC LIMIT 1")
-    fun getLast(userId: Long): Session?
+    suspend fun getLast(userId: Long): Session?
 
     @Query("SELECT * FROM session WHERE userId = :userId AND substr(startDateTime, 1, 10) = :date ORDER BY id DESC LIMIT 1")
-    fun getForDate(userId: Long, date: String): Session?
+    suspend fun getForDate(userId: Long, date: String): Session?
 
     @Insert
-    fun insert(entity: Session): Long
+    suspend fun insert(entity: Session): Long
 
     @Update
-    fun update(entity: Session)
+    suspend fun update(entity: Session)
 
     @Delete
-    fun delete(entity: Session)
+    suspend fun delete(entity: Session)
 }
 
 data class GameTarget(
@@ -170,7 +192,7 @@ data class Throw(
 ) {
     var darts: List<Dart> = listOf()
 
-    fun toHistoryRowData(
+    suspend fun toHistoryRowData(
         dartRepository: DartRepository,
     ): ThrowHistoryRowData {
         val throwTarget = TargetProvider.get(target)
@@ -200,28 +222,32 @@ data class Throw(
 @Dao
 interface ThrowDao {
     @Query("SELECT * FROM throw WHERE id = :id")
-    fun get(id: Long): Throw
+    suspend fun get(id: Long): Throw
 
     @Query("SELECT * FROM throw")
-    fun readAll(): List<Throw>
+    suspend fun readAll(): List<Throw>
 
     @Query("SELECT * FROM throw WHERE sessionId = :sessionId ORDER BY id DESC")
-    fun readForSession(sessionId: Long): Flow<List<Throw>>
+    fun readForSession(sessionId: Long): Flow<List<Throw>?>
 
     @Insert
-    fun insert(entity: Throw): Long
+    suspend fun insert(entity: Throw): Long
 
     @Update
-    fun update(entity: Throw)
+    suspend fun update(entity: Throw)
 
     @Delete
-    fun delete(entity: Throw)
+    suspend fun delete(entity: Throw)
+
+    @Query("DELETE FROM throw WHERE sessionId = :id")
+    suspend fun deleteForSession(id: Long)
 }
 
 @Entity
 data class Dart(
     @PrimaryKey(autoGenerate = true) val id: Long,
     val throwId: Long,
+    val sessionId: Long,
     val order: Int,
     val multiplicator: Int,
     val number: Int,
@@ -231,17 +257,20 @@ data class Dart(
 @Dao
 interface DartDao {
     @Query("SELECT * FROM dart WHERE id = :id")
-    fun get(id: Long): Dart
+    suspend fun get(id: Long): Dart
 
     @Query("SELECT * FROM dart WHERE throwId = :throwId")
-    fun readForThrow(throwId: Long): List<Dart>
+    suspend fun readForThrow(throwId: Long): List<Dart>
 
     @Insert
-    fun insert(entity: Dart): Long
+    suspend fun insert(entity: Dart): Long
 
     @Update
-    fun update(entity: Dart)
+    suspend fun update(entity: Dart)
 
     @Delete
-    fun delete(entity: Dart)
+    suspend fun delete(entity: Dart)
+
+    @Query("DELETE FROM dart WHERE sessionId = :id")
+    suspend fun deleteForSession(id: Long)
 }
