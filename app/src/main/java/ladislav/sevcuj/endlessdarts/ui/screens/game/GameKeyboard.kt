@@ -166,7 +166,7 @@ private fun FieldButton(
 ) {
     Box(
         modifier = modifier
-            .padding((Ui.paddingHalved / 2).dp)
+            .padding(horizontal = (Ui.paddingHalved / 2).dp)
     ) {
         Button(
             onClick = { onPress(field) },

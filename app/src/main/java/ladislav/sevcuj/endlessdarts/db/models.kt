@@ -1,7 +1,6 @@
 package ladislav.sevcuj.endlessdarts.db
 
 import androidx.room.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import ladislav.sevcuj.endlessdarts.DartBoard
 import ladislav.sevcuj.endlessdarts.TargetProvider
@@ -198,7 +197,6 @@ data class Throw(
     ): ThrowHistoryRowData {
         val throwTarget = TargetProvider.get(target)
         val darts = dartRepository.readForThrow(id)
-        delay(100)
 
         return ThrowHistoryRowData(
             throwId = id,
@@ -229,7 +227,7 @@ interface ThrowDao {
     @Query("SELECT * FROM throw")
     suspend fun readAll(): List<Throw>
 
-    @Query("SELECT * FROM throw WHERE sessionId = :sessionId ORDER BY id DESC")
+    @Query("SELECT * FROM throw WHERE sessionId = :sessionId AND (SELECT COUNT(*) FROM Dart WHERE Dart.throwId = throw.id) = 3 ORDER BY id DESC")
     fun readForSession(sessionId: Long): Flow<List<Throw>?>
 
     @Insert

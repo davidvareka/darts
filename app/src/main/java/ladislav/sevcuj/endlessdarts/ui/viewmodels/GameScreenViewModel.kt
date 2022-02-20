@@ -1,16 +1,19 @@
 package ladislav.sevcuj.endlessdarts.ui.viewmodels
 
+import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.*
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import ladislav.sevcuj.endlessdarts.*
 import ladislav.sevcuj.endlessdarts.db.*
 
+
 class GameScreenViewModel(
     private var user: User,
-    app: App,
+    private val app: App,
     private val globalViewModel: GlobalViewModel,
 ) : ViewModel() {
     private val sessionRepository = app.sessionRepository
@@ -37,6 +40,8 @@ class GameScreenViewModel(
     private val _stats = MutableLiveData<SessionStats>()
     val stats: LiveData<SessionStats>
         get() = _stats
+
+    var saveTimer: CountDownTimer? = null
 
     init {
         load()
@@ -65,64 +70,85 @@ class GameScreenViewModel(
                 )
             }
 
+            _lastThrow.postValue(null)
             _currentThrow.postValue(buildNewThrow())
             _stats.postValue(stats)
         }
     }
 
     fun onDart(field: DartBoard.Field) {
+        var currentThrow = _currentThrow.value!!
+
+        saveTimer?.let { timer ->
+            timer.cancel()
+            saveTimer = null
+            storeData(currentThrow)
+        }
+
         val gameTarget = globalViewModel.target.value!!
 
+        if (currentThrow.darts.size >= 3) {
+            throws.add(currentThrow)
+            _lastThrow.postValue(currentThrow)
+            currentThrow = buildNewThrow()
+        }
+
+        val darts = currentThrow.darts.toMutableList()
+
+        val multi = if (field.defaultMultiplication > 1) {
+            field.defaultMultiplication
+        } else {
+            _multiplicator.value!!
+        }
+
+        val dart = Dart(
+            id = 0,
+            order = darts.size + 1,
+            throwId = currentThrow.id,
+            sessionId = session.id,
+            multiplicator = _multiplicator.value!!,
+            number = field.value,
+            sum = multi * field.value,
+        )
+
+        darts.add(dart)
+
+        val values = darts.map { item -> item.sum }.toTypedArray()
+
+        val newThrow = currentThrow.copy(
+            throwSummary = darts.sumOf { item -> item.sum },
+            dartsAverage = values.average().toInt(),
+            dartsCount = darts.size,
+            doubleCount = darts.count { item -> item.multiplicator == 2 },
+            tripleCount = darts.count { item -> item.multiplicator == 3 },
+            targetHits = darts.count { item -> item.number == gameTarget.number },
+            targetSuccess = darts.firstOrNull { item -> item.number != gameTarget.number } == null,
+            firstDartDatetime = currentThrow.firstDartDatetime ?: DateInstance.now()
+                .asDatetimeString(),
+            lastDartDatetime = DateInstance.now().asDatetimeString(),
+        )
+
+        newThrow.darts = darts
+
+        _currentThrow.postValue(newThrow)
+        _multiplicator.postValue(1)
+
+        if (newThrow.darts.size >= 3) {
+            saveTimer = object : CountDownTimer(3000, 3000) {
+                override fun onTick(millisUntilFinished: Long) {
+                }
+
+                override fun onFinish() {
+                    storeData(newThrow)
+                    saveTimer = null
+                }
+            }.start()
+        }
+    }
+
+    private fun storeData(newThrow: Throw) {
         viewModelScope.launch(Dispatchers.IO) {
-            var currentThrow = _currentThrow.value!!
-
-            if (currentThrow.darts.size >= 3) {
-                throws.add(currentThrow)
-                _lastThrow.postValue(currentThrow)
-                currentThrow = buildNewThrow()
-            }
-
-            val darts = currentThrow.darts.toMutableList()
-
-            val multi = if (field.defaultMultiplication > 1) {
-                field.defaultMultiplication
-            } else {
-                _multiplicator.value!!
-            }
-
-            val dart = Dart(
-                id = 0,
-                order = darts.size + 1,
-                throwId = currentThrow.id,
-                sessionId = session.id,
-                multiplicator = _multiplicator.value!!,
-                number = field.value,
-                sum = multi * field.value,
-            )
-
-            darts.add(dart)
-
-            val values = darts.map { item -> item.sum }.toTypedArray()
-
-            val newThrow = currentThrow.copy(
-                throwSummary = darts.sumOf { item -> item.sum },
-                dartsAverage = values.average().toInt(),
-                dartsCount = darts.size,
-                doubleCount = darts.count { item -> item.multiplicator == 2 },
-                tripleCount = darts.count { item -> item.multiplicator == 3 },
-                targetHits = darts.count { item -> item.number == gameTarget.number },
-                targetSuccess = darts.firstOrNull { item -> item.number != gameTarget.number } == null,
-                firstDartDatetime = currentThrow.firstDartDatetime ?: DateInstance.now()
-                    .asDatetimeString(),
-                lastDartDatetime = DateInstance.now().asDatetimeString(),
-            )
-
-            newThrow.darts = darts
-
-            _currentThrow.postValue(newThrow)
-            _multiplicator.postValue(1)
-
-            if (newThrow.darts.size >= 3) {
+            app.database.withTransaction {
                 val sessionId = if (session.id == 0L) {
                     val id = sessionRepository.insert(session)
                     session = session.copy(id = id)
@@ -280,6 +306,7 @@ class GameScreenViewModel(
             }
             "deleteLast" -> {
                 _currentThrow.value?.let {
+                    saveTimer?.cancel()
                     val darts = it.darts.toMutableList()
 
                     if (darts.removeLastOrNull() != null) {

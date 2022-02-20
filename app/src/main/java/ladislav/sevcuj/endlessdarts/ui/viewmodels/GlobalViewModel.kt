@@ -1,6 +1,7 @@
 package ladislav.sevcuj.endlessdarts.ui.viewmodels
 
 import androidx.lifecycle.*
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -55,15 +56,17 @@ class GlobalViewModel(
 
     private fun deleteTemporaryUser(user: User) {
         viewModelScope.launch(Dispatchers.IO) {
-            val sessions = app.sessionRepository.getForUser(user.id)
+            app.database.withTransaction {
+                val sessions = app.sessionRepository.getForUser(user.id)
 
-            sessions.forEach {
-                app.sessionStatsRepository.deleteForSession(it.id)
-                app.throwRepository.deleteForSession(it.id)
-                app.dartRepository.deleteForSession(it.id)
+                sessions.forEach {
+                    app.sessionStatsRepository.deleteForSession(it.id)
+                    app.throwRepository.deleteForSession(it.id)
+                    app.dartRepository.deleteForSession(it.id)
+                }
+
+                app.userRepository.delete(user)
             }
-
-            app.userRepository.delete(user)
         }
     }
 }

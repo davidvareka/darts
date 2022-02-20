@@ -1,9 +1,7 @@
 package ladislav.sevcuj.endlessdarts.ui.screens.game
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,8 +25,7 @@ fun GameScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = Ui.padding.dp)
-            .verticalScroll(ScrollState(0)),
+            .padding(horizontal = Ui.padding.dp),
     ) {
         SpacerHorizontal()
 
@@ -59,14 +56,16 @@ fun GameScreen(
             )
         }
 
-        SpacerHorizontal(Ui.padding * 2)
+        SpacerHorizontal()
 
         GameKeyboard(
             data.targetFields,
             multiplicator = data.multiplicator,
             onDart = interactions.onDart,
             onAction = interactions.onActionButton,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
         )
 
         SpacerHorizontal()

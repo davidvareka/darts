@@ -141,6 +141,13 @@ class ScoreScreenViewModel(
             load()
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+
+        throwsJob?.cancel()
+        statsJob?.cancel()
+    }
 }
 
 class ScoreScreenViewModelFactory(

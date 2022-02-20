@@ -5,6 +5,14 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        release {
+            storeFile file('C:\\courses\\android\\EndlessDarts\\key.jks')
+            storePassword 'EndlessDarts'
+            keyAlias 'EndlessDarts'
+            keyPassword 'EndlessDarts'
+        }
+    }
     compileSdk 31
 
     defaultConfig {
@@ -22,7 +30,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            debuggable false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -39,8 +48,8 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion "1.0.5"
-        kotlinCompilerVersion '1.5.31'
+        kotlinCompilerExtensionVersion "1.1.0"
+        kotlinCompilerVersion '1.6.10'
     }
     packagingOptions {
         resources {
