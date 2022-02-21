@@ -8,9 +8,7 @@ import kotlinx.coroutines.launch
 import ladislav.sevcuj.endlessdarts.App
 import ladislav.sevcuj.endlessdarts.DateInstance
 import ladislav.sevcuj.endlessdarts.asDateString
-import ladislav.sevcuj.endlessdarts.db.Session
-import ladislav.sevcuj.endlessdarts.db.SessionStats
-import ladislav.sevcuj.endlessdarts.db.User
+import ladislav.sevcuj.endlessdarts.db.*
 import ladislav.sevcuj.endlessdarts.ui.screens.score.ThrowHistoryRowData
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
 import java.util.*
@@ -46,6 +44,12 @@ class ScoreScreenViewModel(
     private val _stats = MutableLiveData<List<StatsRowData>>()
     val stats: LiveData<List<StatsRowData>>
         get() = _stats
+
+    private var filter = ThrowFilter.NONE
+
+    private val _filterIsActive = MutableLiveData(false)
+    val filterIsActive: LiveData<Boolean>
+        get() = _filterIsActive
 
     init {
         load()
@@ -113,12 +117,35 @@ class ScoreScreenViewModel(
         }
     }
 
+    fun setFilter(newFilter: ThrowFilter) {
+        filter = newFilter
+        _selectedSession.value?.let {
+            loadThrows(it.id)
+        }
+        _filterIsActive.postValue(newFilter != ThrowFilter.NONE)
+    }
+
+    private fun filterItem(item: Throw): Boolean {
+        return when (filter) {
+            ThrowFilter.FULL_SUCCESS -> item.targetSuccess
+            ThrowFilter.FULL_MISS -> item.targetHits == 0
+            ThrowFilter.SUMMARY_100 -> item.throwSummary >= 100
+            ThrowFilter.SUMMARY_140 -> item.throwSummary >= 140
+            ThrowFilter.SUMMARY_180 -> item.throwSummary >= 180
+            ThrowFilter.TRIPLE -> item.tripleCount > 0
+            ThrowFilter.DOUBLE -> item.doubleCount > 0
+            ThrowFilter.START_OK -> item.firstDartIsSuccess
+            ThrowFilter.FAIL -> item.onlyLastDartIsFail
+            else -> true
+        }
+    }
+
     private fun loadThrows(sessionId: Long) {
         throwsJob?.cancel()
         throwsJob = viewModelScope.launch(Dispatchers.IO) {
             throwRepository.readForSession(sessionId).collect { throws ->
-                throws?.let {
-                    _throws.postValue(it.map { item -> item.toHistoryRowData(dartRepository) })
+                throws?.let { list ->
+                    _throws.postValue(list.filter { t -> filterItem(t) }.map { item -> item.toHistoryRowData(dartRepository) })
                 }
             }
         }

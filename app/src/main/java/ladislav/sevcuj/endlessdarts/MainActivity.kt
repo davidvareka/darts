@@ -305,6 +305,7 @@ class MainActivity : ComponentActivity() {
                             val prevSession by scoreScreenViewModel.prevSession.observeAsState(prev.asDateString())
                             val nextSession by scoreScreenViewModel.nextSession.observeAsState()
                             val throws by scoreScreenViewModel.throws.observeAsState(listOf())
+                            val filterIsActive by scoreScreenViewModel.filterIsActive.observeAsState(false)
                             val stats by scoreScreenViewModel.stats.observeAsState(SessionStats(0).toFullData())
 
                             val data = ScoreScreenData(
@@ -320,7 +321,9 @@ class MainActivity : ComponentActivity() {
                                 data = data,
                                 onSessionSelect = {
                                     scoreScreenViewModel.loadForDate(it)
-                                }
+                                },
+                                filterIsActive = filterIsActive,
+                                onFilter = scoreScreenViewModel::setFilter
                             )
                         }
 

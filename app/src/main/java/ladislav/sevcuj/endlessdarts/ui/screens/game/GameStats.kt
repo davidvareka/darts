@@ -26,7 +26,7 @@ fun GameStats(
         SpacerHorizontal()
 
         data.forEach {
-            StatsRow(it)
+            StatsRow(it, onFilter = null)
             Divider()
         }
     }
@@ -43,15 +43,14 @@ private fun GameStatsPreview() {
                     "Target full success (rate)",
                     "0 (0%)",
                     isSuccess = true,
-                    showDetail = true,
                     info = "info"
                 ),
-                StatsRowData("Target full miss (rate)", "0 (0%)", isFail = true, showDetail = true),
+                StatsRowData("Target full miss (rate)", "0 (0%)", isFail = true),
                 StatsRowData("Target hits (rate)", "0 (0%)"),
                 StatsRowData("Throw average", "0"),
                 StatsRowData("Throw max", "0"),
-                StatsRowData("140+", "0", showDetail = true, info = "info"),
-                StatsRowData("100+", "0", showDetail = true),
+                StatsRowData("140+", "0", info = "info"),
+                StatsRowData("100+", "0"),
             )
         )
     }

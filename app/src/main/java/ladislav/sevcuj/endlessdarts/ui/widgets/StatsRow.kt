@@ -15,14 +15,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ladislav.sevcuj.endlessdarts.Ui
+import ladislav.sevcuj.endlessdarts.db.ThrowFilter
 import ladislav.sevcuj.endlessdarts.ui.theme.EndlessDartsTheme
 
 @Composable
 fun StatsRow(
     data: StatsRowData,
+    onFilter: ((ThrowFilter) -> Unit)?,
 ) {
     val color = when {
         data.isSuccess -> {
@@ -64,21 +67,34 @@ fun StatsRow(
                     modifier = Modifier
                         .size(18.dp)
                         .clickable {
-                        //TODO
-                    }
+                            //TODO
+                        }
                 )
             }
 
-            if (data.showDetail) {
+            if (onFilter != null && data.filter != ThrowFilter.NONE) {
                 SpacerVertical(4)
 
                 Text(
-                    text = "(show)",
+                    text = "(",
                     color = Color.Blue,
                     fontWeight = FontWeight.Bold,
+                )
+
+                Text(
+                    text = "show",
+                    color = Color.Blue,
+                    textDecoration = TextDecoration.Underline,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
-                        //TODO
+                        onFilter(data.filter)
                     }
+                )
+
+                Text(
+                    text = ")",
+                    color = Color.Blue,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -102,7 +118,7 @@ data class StatsRowData(
     val value: String,
     val isSuccess: Boolean = false,
     val isFail: Boolean = false,
-    val showDetail: Boolean = false,
+    val filter: ThrowFilter = ThrowFilter.NONE,
     val info: String? = null,
 )
 
@@ -118,9 +134,9 @@ private fun StatsRowPreview() {
                     "Target full success (rate)",
                     "0 (0%)",
                     isSuccess = true,
-                    showDetail = true,
                     info = "Info",
-                )
+                ),
+                onFilter = { }
             )
         }
     }

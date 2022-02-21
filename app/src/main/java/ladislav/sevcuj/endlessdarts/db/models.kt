@@ -35,6 +35,19 @@ data class Session(
     val endDateTime: String? = null,
 )
 
+enum class ThrowFilter {
+    NONE,
+    FULL_SUCCESS,
+    FULL_MISS,
+    SUMMARY_100,
+    SUMMARY_140,
+    SUMMARY_180,
+    TRIPLE,
+    DOUBLE,
+    START_OK,
+    FAIL
+}
+
 @Entity(tableName = "session_stats")
 data class SessionStats(
     @PrimaryKey val sessionId: Long,
@@ -62,11 +75,13 @@ data class SessionStats(
             StatsRowData("Throws", throwsCount.toString()),
             StatsRowData(
                 "Target full success (rate)",
-                "$fullSuccessCount (${fullSuccessPercent.toDecimalString()}%)"
+                "$fullSuccessCount (${fullSuccessPercent.toDecimalString()}%)",
+                filter = ThrowFilter.FULL_SUCCESS,
             ),
             StatsRowData(
                 "Target full miss (rate)",
-                "$fullMissCount (${fullMissPercent.toDecimalString()}%)"
+                "$fullMissCount (${fullMissPercent.toDecimalString()}%)",
+                filter = ThrowFilter.FULL_MISS,
             ),
             StatsRowData(
                 "Target hits (rate)",
@@ -74,8 +89,8 @@ data class SessionStats(
             ),
             StatsRowData("Throw average", (average / 100).toString()),
             StatsRowData("Throw max", max.toString()),
-            StatsRowData("140+", above140Count.toString()),
-            StatsRowData("100+", above100Count.toString()),
+            StatsRowData("140+", above140Count.toString(), filter = ThrowFilter.SUMMARY_140),
+            StatsRowData("100+", above100Count.toString(), filter = ThrowFilter.SUMMARY_100),
         )
     }
 
@@ -87,15 +102,22 @@ data class SessionStats(
         val potentialCount = fullSuccessCount + failCount
         val potentialPercent = getPercent(potentialCount, throwsCount)
 
-        simpleList.add(StatsRowData("Double", doubleCount.toString()))
-        simpleList.add(StatsRowData("Triple", tripleCount.toString()))
+        simpleList.add(StatsRowData("Double", doubleCount.toString(), filter = ThrowFilter.DOUBLE))
+        simpleList.add(StatsRowData("Triple", tripleCount.toString(), filter = ThrowFilter.TRIPLE))
         simpleList.add(
             StatsRowData(
                 "Start OK",
-                "$targetHitsCount (${startOkPercent.toDecimalString()}%)"
+                "$targetHitsCount (${startOkPercent.toDecimalString()}%)",
+                filter = ThrowFilter.START_OK
             )
         )
-        simpleList.add(StatsRowData("Fail", "$failCount (${failPercent.toDecimalString()}%)"))
+        simpleList.add(
+            StatsRowData(
+                "Fail",
+                "$failCount (${failPercent.toDecimalString()}%)",
+                filter = ThrowFilter.FAIL
+            )
+        )
         simpleList.add(
             StatsRowData(
                 "Potential",
@@ -189,6 +211,8 @@ data class Throw(
     val firstDartDatetime: String? = null,
     val lastDartDatetime: String? = null,
     val isLogged: Boolean = false,
+    val firstDartIsSuccess: Boolean = false,
+    val onlyLastDartIsFail: Boolean = false,
 ) {
     var darts: List<Dart> = listOf()
 

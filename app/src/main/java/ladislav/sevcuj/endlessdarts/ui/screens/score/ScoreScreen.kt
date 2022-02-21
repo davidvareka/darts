@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ladislav.sevcuj.endlessdarts.Ui
+import ladislav.sevcuj.endlessdarts.db.ThrowFilter
 import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerHorizontal
 import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerVertical
 import ladislav.sevcuj.endlessdarts.ui.widgets.StatsRowData
@@ -16,6 +17,8 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.WidgetTitle
 fun ScoreScreen(
     data: ScoreScreenData,
     onSessionSelect: (String) -> Unit,
+    filterIsActive: Boolean,
+    onFilter: (ThrowFilter) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -54,6 +57,8 @@ fun ScoreScreen(
 
             Statistics(
                 data.stats,
+                filterIsActive = filterIsActive,
+                onFilter = onFilter,
                 modifier = columnModifier
             )
         }

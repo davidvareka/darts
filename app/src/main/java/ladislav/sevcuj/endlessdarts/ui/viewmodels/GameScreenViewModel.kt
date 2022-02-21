@@ -106,7 +106,7 @@ class GameScreenViewModel(
             order = darts.size + 1,
             throwId = currentThrow.id,
             sessionId = session.id,
-            multiplicator = _multiplicator.value!!,
+            multiplicator = if (field.defaultMultiplication > 1) field.defaultMultiplication else _multiplicator.value!!,
             number = field.value,
             sum = multi * field.value,
         )
@@ -126,6 +126,8 @@ class GameScreenViewModel(
             firstDartDatetime = currentThrow.firstDartDatetime ?: DateInstance.now()
                 .asDatetimeString(),
             lastDartDatetime = DateInstance.now().asDatetimeString(),
+            firstDartIsSuccess = darts.first().number == gameTarget.number,
+            onlyLastDartIsFail = darts.indexOfFirst { d -> d.number != gameTarget.number } == 2,
         )
 
         newThrow.darts = darts
@@ -171,11 +173,13 @@ class GameScreenViewModel(
 
                 calculateStats(newThrow)
             }
+
+            _lastThrow.postValue(newThrow)
+            _currentThrow.postValue(buildNewThrow())
         }
     }
 
     private fun calculateStats(lastThrow: Throw) {
-        val gameTarget = globalViewModel.target.value!!
         val stats = _stats.value!!
         val statsAreStored = stats.sessionId > 0
         val darts = lastThrow.darts
@@ -189,17 +193,10 @@ class GameScreenViewModel(
 
         val max = darts.map { it.sum }.toTypedArray().sum()
         val average = allDarts.map { it.sum }.toTypedArray().average()
-        val isFullSuccess = darts.firstOrNull { d -> d.number != gameTarget.number } == null
-        val isFullMiss = darts.firstOrNull { d -> d.number == gameTarget.number } == null
 
-        var targetHits = 0
-        var countDouble = 0
-        var countTriple = 0
         var count100 = 0
         var count140 = 0
         var count180 = 0
-        var firstIsSuccess = false
-        var isFail = false
 
         if (lastThrow.throwSummary > 100) {
             count100++
@@ -213,48 +210,22 @@ class GameScreenViewModel(
             count180++
         }
 
-        var isOk = true
-
-        darts.forEachIndexed { index, dart ->
-            if (dart.number == gameTarget.number) {
-                targetHits++
-
-                if (index == 0) {
-                    firstIsSuccess = true
-                }
-            } else {
-                if (index == 2 && isOk) {
-                    isFail = true
-                }
-
-                isOk = false
-            }
-
-            if (dart.multiplicator == 2) {
-                countDouble++
-            }
-
-            if (dart.multiplicator == 3) {
-                countTriple++
-            }
-        }
-
         val newStats = stats.copy(
             sessionId = session.id,
             throwsCount = stats.throwsCount + 1,
             dartsCount = stats.dartsCount + darts.size,
-            doubleCount = stats.doubleCount + countDouble,
-            tripleCount = stats.tripleCount + countTriple,
-            firstDartSuccessCount = if (firstIsSuccess) stats.firstDartSuccessCount + 1 else stats.firstDartSuccessCount,
-            fullSuccessCount = if (isFullSuccess) stats.fullSuccessCount + 1 else stats.fullSuccessCount,
-            fullMissCount = if (isFullMiss) stats.fullMissCount + 1 else stats.fullMissCount,
-            targetHitsCount = stats.targetHitsCount + targetHits,
+            doubleCount = stats.doubleCount + lastThrow.doubleCount,
+            tripleCount = stats.tripleCount + lastThrow.tripleCount,
+            firstDartSuccessCount = if (lastThrow.firstDartIsSuccess) stats.firstDartSuccessCount + 1 else stats.firstDartSuccessCount,
+            fullSuccessCount = if (lastThrow.targetSuccess) stats.fullSuccessCount + 1 else stats.fullSuccessCount,
+            fullMissCount = if (lastThrow.targetHits == 0) stats.fullMissCount + 1 else stats.fullMissCount,
+            targetHitsCount = stats.targetHitsCount + lastThrow.targetHits,
             average = (average * 100).toInt(),
             max = if (max > stats.max) max else stats.max,
             sum180Count = stats.sum180Count + count180,
             above140Count = stats.above140Count + count140,
             above100Count = stats.above100Count + count100,
-            failCount = if (isFail) stats.failCount + 1 else stats.failCount,
+            failCount = if (lastThrow.onlyLastDartIsFail) stats.failCount + 1 else stats.failCount,
         )
 
         _stats.postValue(newStats)
