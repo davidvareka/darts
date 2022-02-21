@@ -83,15 +83,12 @@ class GameScreenViewModel(
             timer.cancel()
             saveTimer = null
             storeData(currentThrow)
-        }
-
-        val gameTarget = globalViewModel.target.value!!
-
-        if (currentThrow.darts.size >= 3) {
             throws.add(currentThrow)
             _lastThrow.postValue(currentThrow)
             currentThrow = buildNewThrow()
         }
+
+        val gameTarget = globalViewModel.target.value!!
 
         val darts = currentThrow.darts.toMutableList()
 
@@ -142,6 +139,9 @@ class GameScreenViewModel(
 
                 override fun onFinish() {
                     storeData(newThrow)
+                    throws.add(newThrow)
+                    _lastThrow.postValue(newThrow)
+                    _currentThrow.postValue(buildNewThrow())
                     saveTimer = null
                 }
             }.start()
@@ -173,9 +173,6 @@ class GameScreenViewModel(
 
                 calculateStats(newThrow)
             }
-
-            _lastThrow.postValue(newThrow)
-            _currentThrow.postValue(buildNewThrow())
         }
     }
 
