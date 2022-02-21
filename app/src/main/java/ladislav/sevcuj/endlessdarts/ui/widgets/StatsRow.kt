@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import ladislav.sevcuj.endlessdarts.Ui
 import ladislav.sevcuj.endlessdarts.db.ThrowFilter
 import ladislav.sevcuj.endlessdarts.ui.theme.EndlessDartsTheme
+import ladislav.sevcuj.endlessdarts.ui.theme.colorFail
+import ladislav.sevcuj.endlessdarts.ui.theme.colorSuccess
 
 @Composable
 fun StatsRow(
@@ -29,10 +31,10 @@ fun StatsRow(
 ) {
     val color = when {
         data.isSuccess -> {
-            Color(0xFF198754)
+            colorSuccess
         }
         data.isFail -> {
-            Color(0xFFdc3545)
+            colorFail
         }
         else -> {
             Color.Transparent
