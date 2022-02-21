@@ -23,12 +23,15 @@ import ladislav.sevcuj.endlessdarts.ui.widgets.SpacerHorizontal
 @Composable
 fun ThrowHistory(
     data: List<ThrowHistoryRowData>,
+    filterIsActive: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
     ) {
-        ThrowHistoryHead()
+        ThrowHistoryHead(
+            filterIsActive = filterIsActive,
+        )
 
         Divider(color = Color.Black)
 
@@ -42,7 +45,10 @@ fun ThrowHistory(
                     .padding(vertical = 8.dp)
             )
         } else {
-            ThrowHistoryBody(data)
+            ThrowHistoryBody(
+                data,
+                filterIsActive = filterIsActive,
+            )
             Divider(color = Color.Black)
             SpacerHorizontal(Ui.paddingHalved)
             Text(
@@ -54,11 +60,18 @@ fun ThrowHistory(
 }
 
 @Composable
-private fun ThrowHistoryHead() {
+private fun ThrowHistoryHead(filterIsActive: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
         val modifier = Modifier.weight(1f)
+
+        if (filterIsActive) {
+            ThrowHistoryHeadCell(
+                title = "#",
+                modifier = modifier,
+            )
+        }
 
         ThrowHistoryHeadCell(
             title = "target",
@@ -109,7 +122,7 @@ private fun ThrowHistoryHeadCell(
 }
 
 @Composable
-private fun ThrowHistoryBody(data: List<ThrowHistoryRowData>) {
+private fun ThrowHistoryBody(data: List<ThrowHistoryRowData>, filterIsActive: Boolean) {
     Column(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -118,7 +131,7 @@ private fun ThrowHistoryBody(data: List<ThrowHistoryRowData>) {
                 Divider()
             }
 
-            ThrowHistoryRow(data = item)
+            ThrowHistoryRow(data = item, filterIsActive)
         }
     }
 }
@@ -126,11 +139,19 @@ private fun ThrowHistoryBody(data: List<ThrowHistoryRowData>) {
 @Composable
 private fun ThrowHistoryRow(
     data: ThrowHistoryRowData,
+    filterIsActive: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
         val modifier = Modifier.weight(1f)
+
+        if (filterIsActive) {
+            ThrowHistoryValueCell(
+                data.order.toString(),
+                modifier,
+            )
+        }
 
         ThrowHistoryValueCell(
             data.target,
@@ -218,6 +239,7 @@ private fun ThrowHistoryValueCell(
 
 data class ThrowHistoryRowData(
     val throwId: Long,
+    val order: Int,
     val target: String,
     val dart1: Dart,
     val dart2: Dart,
@@ -243,6 +265,7 @@ fun ThrowHistoryPreview() {
             ThrowHistory(listOf(
                 ThrowHistoryRowData(
                     1,
+                    1,
                     "20",
                     ThrowHistoryRowData.Dart("20", true),
                     ThrowHistoryRowData.Dart("15", false),
@@ -252,14 +275,16 @@ fun ThrowHistoryPreview() {
                 ),
                 ThrowHistoryRowData(
                     2,
+                    2,
                     "20",
-                    ThrowHistoryRowData.Dart("1", false),
+                    ThrowHistoryRowData.Dart("1",  false),
                     ThrowHistoryRowData.Dart("1", false),
                     ThrowHistoryRowData.Dart("1", false),
                     3,
                     1,
                 ),
                 ThrowHistoryRowData(
+                    3,
                     3,
                     "20",
                     ThrowHistoryRowData.Dart("5", false),
@@ -268,7 +293,7 @@ fun ThrowHistoryPreview() {
                     15,
                     5,
                 ),
-            ))
+            ), false)
         }
     }
 }

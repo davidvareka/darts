@@ -50,6 +50,7 @@ fun ScoreScreen(
 
             ThrowHistory(
                 data.throws,
+                filterIsActive = filterIsActive,
                 modifier = columnModifier
             )
 

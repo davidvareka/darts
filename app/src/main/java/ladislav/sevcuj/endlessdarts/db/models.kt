@@ -218,12 +218,14 @@ data class Throw(
 
     suspend fun toHistoryRowData(
         dartRepository: DartRepository,
+        order: Int,
     ): ThrowHistoryRowData {
         val throwTarget = TargetProvider.get(target)
         val darts = dartRepository.readForThrow(id)
 
         return ThrowHistoryRowData(
             throwId = id,
+            order = order,
             target = target.toString(),
             dart1 = ThrowHistoryRowData.Dart(
                 value = darts[0].sum.toString(),

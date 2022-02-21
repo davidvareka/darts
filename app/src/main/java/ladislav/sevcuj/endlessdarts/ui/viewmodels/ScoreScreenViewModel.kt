@@ -145,7 +145,15 @@ class ScoreScreenViewModel(
         throwsJob = viewModelScope.launch(Dispatchers.IO) {
             throwRepository.readForSession(sessionId).collect { throws ->
                 throws?.let { list ->
-                    _throws.postValue(list.filter { t -> filterItem(t) }.map { item -> item.toHistoryRowData(dartRepository) })
+                    val filtered = mutableListOf<ThrowHistoryRowData>()
+
+                    list.forEachIndexed { index, item ->
+                        if (filterItem(item)) {
+                            filtered.add(item.toHistoryRowData(dartRepository, list.size - index))
+                        }
+                    }
+
+                    _throws.postValue(filtered.toList())
                 }
             }
         }
